@@ -10,6 +10,7 @@ A comprehensive Neovim plugin that integrates with [jira-cli](https://github.com
 
 - **📝 Interactive Forms**: Create issues and filter lists using intuitive form interfaces
 - **⚡ Quick Commands**: Instant access to common Jira operations with preset filters
+- **🔄 Smart Transitions**: Change issue status with context-aware state selection
 - **🪟 Flexible UI**: Floating windows or split windows with customizable keymaps
 - **🔍 Advanced Filtering**: Comprehensive issue filtering with support for all jira-cli options
 - **🚀 LazyVim Integration**: Seamless integration with LazyVim with proper which-key support
@@ -196,18 +197,30 @@ require('jira-nvim').setup({
 
 ## 🎯 Commands
 
+### Core Commands
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `:JiraIssueList [args]` | List/filter issues (opens form if no args) | `:JiraIssueList -a$(jira me) -s"To Do"` |
 | `:JiraIssueView <key>` | View issue details | `:JiraIssueView PROJ-123` |
 | `:JiraIssueCreate [args]` | Create new issue (opens form if no args) | `:JiraIssueCreate -tBug -s"Bug title"` |
 | `:JiraIssueTransition <key> "state" ["comment"] ["assignee"] ["resolution"]` | Transition issue to new state | `:JiraIssueTransition PROJ-123 "To Be Reviewed"` |
+
+### Sprint & Project Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
 | `:JiraSprintList [args]` | List sprints | `:JiraSprintList --current` |
 | `:JiraEpicList [args]` | List epics | `:JiraEpicList --table` |
-| `:JiraOpen [key]` | Open in browser | `:JiraOpen PROJ-123` |
 | `:JiraProjectList` | List projects | `:JiraProjectList` |
 | `:JiraBoardList` | List boards | `:JiraBoardList` |
-| `:JiraHelp` | Show help | `:JiraHelp` |
+
+### Utility Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `:JiraOpen [key]` | Open in browser | `:JiraOpen PROJ-123` |
+| `:JiraHelp` | Show plugin help | `:JiraHelp` |
 
 ## ⌨️ Default Keymaps (LazyVim)
 
@@ -242,6 +255,29 @@ require('jira-nvim').setup({
 - `<CR>` - Open issue under cursor in browser
 - `v` - View details of issue under cursor
 - `t` - Transition current issue state (shows available state options)
+
+## 🔄 Issue Transitions
+
+The plugin provides intelligent issue state transitions with context-aware options:
+
+### Smart State Selection
+- **Available States Detection**: Automatically fetches valid transition states for each issue
+- **Interactive Selection**: Uses `vim.ui.select` to show available options
+- **Fallback Support**: Falls back to manual input if states can't be retrieved
+- **Context Awareness**: Works both globally and within issue view buffers
+
+### Transition Methods
+1. **Global Keymap** (`<leader>jt`): Prompts for issue key, then shows available states
+2. **In-Buffer Keymap** (`t` by default, customizable): Auto-detects issue from buffer title
+3. **Command Line** (`:JiraIssueTransition PROJ-123 "State"`): Direct command execution
+
+### Customization
+```lua
+-- Custom transition keymap (avoiding vim's default 't')
+keymaps = {
+  transition_issue = '<M-t>'  -- Alt+t instead of 't'
+}
+```
 
 ## 📝 Interactive Forms
 
@@ -295,10 +331,10 @@ Advanced filtering form with:
 
 # Transition an issue (cursor on PROJ-123)
 <leader>jt
-# (Enter new state like "In Progress" or "Done")
+# (Shows available states like "In Progress", "Done", "To Be Reviewed")
 
-# Or while viewing an issue, press 't' to transition
-# (automatically detects issue from buffer title)
+# Or while viewing an issue, press 't' (or your custom keymap) to transition
+# (automatically detects issue and shows available state options)
 
 # Open issue in browser
 <leader>jo
@@ -400,6 +436,33 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **[jira-cli](https://github.com/ankitpokhrel/jira-cli)** - The excellent CLI tool this plugin wraps
 - **[LazyVim](https://github.com/LazyVim/LazyVim)** - Amazing Neovim configuration framework
 - **Neovim community** - For the fantastic plugin ecosystem
+
+## 📋 Complete Feature Summary
+
+### 🎯 Issue Management
+- **List & Filter**: Advanced filtering with forms or direct commands
+- **View Details**: Rich issue display with interactive navigation
+- **Create Issues**: Form-based creation with all field support
+- **Smart Transitions**: Context-aware state changes with available options
+- **Quick Actions**: Auto-detect issue keys, open in browser
+
+### 🔄 Workflow Integration  
+- **Sprint Management**: List current/all sprints
+- **Epic Tracking**: View and manage epics
+- **Project Overview**: Browse projects and boards
+- **Smart Navigation**: Cursor-based issue detection
+
+### ⌨️ Flexible Interface
+- **Global Keymaps**: Quick access from anywhere (`<leader>j*`)
+- **Buffer Keymaps**: Context actions within Jira windows (`t`, `v`, `<CR>`)
+- **Customizable**: All keymaps can be customized
+- **Form-based**: Interactive forms for complex operations
+
+### 🚀 Enhanced Experience
+- **LazyVim Integration**: Seamless setup with which-key support
+- **Floating/Split Windows**: Choose your preferred display mode
+- **Error Handling**: Graceful fallbacks and helpful error messages
+- **Performance**: Async operations, no blocking
 
 ## 📚 Integration with jira-cli
 
