@@ -117,25 +117,30 @@ function M.show_output(title, content)
     desc = 'View issue details'
   })
   
-  vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.transition_issue, '', {
-    noremap = true,
-    silent = true,
-    callback = function()
-      local issue_key = get_issue_key_from_buffer(title)
-      if issue_key then
-        vim.ui.input({
-          prompt = 'New state for ' .. issue_key .. ': ',
-        }, function(state)
-          if state and state ~= '' then
-            require('jira-nvim.cli').issue_transition(issue_key, state)
-          end
-        end)
-      else
-        vim.notify('No issue key found in buffer', vim.log.levels.WARN)
-      end
-    end,
-    desc = 'Transition issue state'
-  })
+  -- Only set the transition keymap if it exists in config
+  if keymaps.transition_issue then
+    -- Debug: show what keymap is being set
+    vim.notify('Setting transition keymap: ' .. keymaps.transition_issue, vim.log.levels.INFO)
+    vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.transition_issue, '', {
+      noremap = true,
+      silent = true,
+      callback = function()
+        local issue_key = get_issue_key_from_buffer(title)
+        if issue_key then
+          vim.ui.input({
+            prompt = 'New state for ' .. issue_key .. ': ',
+          }, function(state)
+            if state and state ~= '' then
+              require('jira-nvim.cli').issue_transition(issue_key, state)
+            end
+          end)
+        else
+          vim.notify('No issue key found in buffer', vim.log.levels.WARN)
+        end
+      end,
+      desc = 'Transition issue state'
+    })
+  end
   
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'cursorline', true)
