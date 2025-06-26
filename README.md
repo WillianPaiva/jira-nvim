@@ -184,7 +184,7 @@ require('jira-nvim').setup({
 | `:JiraIssueList [args]` | List/filter issues (opens form if no args) | `:JiraIssueList -a$(jira me) -s"To Do"` |
 | `:JiraIssueView <key>` | View issue details | `:JiraIssueView PROJ-123` |
 | `:JiraIssueCreate [args]` | Create new issue (opens form if no args) | `:JiraIssueCreate -tBug -s"Bug title"` |
-| `:JiraIssueTransition <key> <state> [comment] [assignee] [resolution]` | Transition issue to new state | `:JiraIssueTransition PROJ-123 "In Progress"` |
+| `:JiraIssueTransition <key> "state" ["comment"] ["assignee"] ["resolution"]` | Transition issue to new state | `:JiraIssueTransition PROJ-123 "To Be Reviewed"` |
 | `:JiraSprintList [args]` | List sprints | `:JiraSprintList --current` |
 | `:JiraEpicList [args]` | List epics | `:JiraEpicList --table` |
 | `:JiraOpen [key]` | Open in browser | `:JiraOpen PROJ-123` |
@@ -308,6 +308,9 @@ Advanced filtering form with:
 
 " Transition issue with comment
 :JiraIssueTransition PROJ-123 "Done" "Completed development and testing"
+
+" Transition to multi-word state
+:JiraIssueTransition PROJ-123 "To Be Reviewed"
 
 " View current sprint issues
 :JiraSprintList --current
