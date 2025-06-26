@@ -117,7 +117,7 @@ function M.open(issue_key)
 end
 
 function M.project_list()
-  execute_jira_cmd('project list', '--plain', function(err, output)
+  execute_jira_cmd('project list', '', function(err, output)
     if err then
       utils.show_error('Error listing projects: ' .. err)
       return
