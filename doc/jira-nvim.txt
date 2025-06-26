@@ -1,0 +1,184 @@
+*jira-nvim.txt*                    Jira integration for Neovim
+
+                           JIRA-NVIM MANUAL
+
+Author: Willian Ver Valem Paiva
+License: MIT
+
+==============================================================================
+CONTENTS                                                    *jira-nvim-contents*
+
+    1. Introduction ............................ |jira-nvim-introduction|
+    2. Installation ............................ |jira-nvim-installation|
+    3. Configuration ........................... |jira-nvim-configuration|
+    4. Commands ................................ |jira-nvim-commands|
+    5. Keymaps ................................. |jira-nvim-keymaps|
+    6. Forms ................................... |jira-nvim-forms|
+    7. Troubleshooting ......................... |jira-nvim-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                         *jira-nvim-introduction*
+
+jira-nvim is a comprehensive Neovim plugin that integrates with jira-cli to
+manage Jira from within Neovim using intuitive forms and quick commands.
+
+Features:
+  • Interactive forms for issue creation and filtering
+  • Quick commands for common Jira operations
+  • Flexible UI with floating or split windows
+  • Advanced filtering with all jira-cli options
+  • LazyVim integration with which-key support
+  • Smart navigation with auto-detection of issue keys
+
+==============================================================================
+2. INSTALLATION                                         *jira-nvim-installation*
+
+Prerequisites:
+  • Neovim 0.7+
+  • jira-cli installed and configured
+  • Proper Jira credentials setup
+
+Using lazy.nvim: >lua
+    return {
+      {
+        "your-username/jira-nvim",
+        event = "VeryLazy",
+        dependencies = { "nvim-lua/plenary.nvim" },
+        opts = {
+          -- Your configuration here
+        },
+        keys = {
+          -- Your keymaps here
+        },
+        config = function(_, opts)
+          require("jira-nvim").setup(opts)
+        end,
+      }
+    }
+<
+
+==============================================================================
+3. CONFIGURATION                                       *jira-nvim-configuration*
+
+Default configuration: >lua
+    require('jira-nvim').setup({
+      jira_cmd = 'jira',                    -- Jira CLI command
+      use_floating_window = true,           -- Use floating windows
+      window_width = 0.8,                   -- Floating window width ratio
+      window_height = 0.8,                  -- Floating window height ratio
+      default_project = nil,                -- Default project key
+      keymaps = {
+        close = 'q',                        -- Close window
+        refresh = '<C-r>',                  -- Refresh content
+        open_browser = '<CR>',              -- Open issue in browser
+        view_issue = 'v'                    -- View issue details
+      }
+    })
+<
+
+==============================================================================
+4. COMMANDS                                                 *jira-nvim-commands*
+
+:JiraIssueList [args]                                          *:JiraIssueList*
+    List/filter issues. Opens form if no args provided.
+
+:JiraIssueView {key}                                           *:JiraIssueView*
+    View details of a specific issue.
+
+:JiraIssueCreate [args]                                      *:JiraIssueCreate*
+    Create new issue. Opens form if no args provided.
+
+:JiraSprintList [args]                                        *:JiraSprintList*
+    List sprints.
+
+:JiraEpicList [args]                                            *:JiraEpicList*
+    List epics.
+
+:JiraOpen [key]                                                     *:JiraOpen*
+    Open issue or project in browser.
+
+:JiraProjectList                                            *:JiraProjectList*
+    List all projects.
+
+:JiraBoardList                                                *:JiraBoardList*
+    List all boards.
+
+:JiraHelp                                                          *:JiraHelp*
+    Show plugin help.
+
+==============================================================================
+5. KEYMAPS                                                   *jira-nvim-keymaps*
+
+Default LazyVim keymaps (when using the provided configuration):
+
+Issue Management:
+  <leader>ji    List Issues (Filter Form)
+  <leader>jI    My Issues
+  <leader>jT    My TODO Issues
+  <leader>jP    My In Progress
+  <leader>jr    Recent Issues
+  <leader>ju    Unassigned Issues
+  <leader>jh    High Priority Issues
+  <leader>jv    View Issue
+  <leader>jc    Create Issue (Form)
+
+Sprint & Epic Management:
+  <leader>js    List Sprints
+  <leader>jS    Current Sprint
+  <leader>je    List Epics
+
+Project & Board Management:
+  <leader>jp    List Projects
+  <leader>jb    List Boards
+
+Quick Actions:
+  <leader>jo    Open in Browser
+  <leader>j?    Show Help
+
+In Jira Windows:
+  q             Close window
+  <C-r>         Refresh content
+  <CR>          Open issue under cursor in browser
+  v             View details of issue under cursor
+
+==============================================================================
+6. FORMS                                                       *jira-nvim-forms*
+
+Issue Creation Form (~<leader>jc~):
+  Opens a comprehensive form with fields for Type, Summary, Priority,
+  Assignee, Labels, Components, Fix Version, and Description.
+  
+  Controls:
+  • Fill out fields and press <leader>js or <C-s> to submit
+  • Press q to cancel
+
+Issue List Filter Form (~<leader>ji~):
+  Advanced filtering form with Common Filters, Time Filters, and Advanced
+  options including JQL queries.
+  
+  Example filter values:
+  • Assignee: $(jira me), username, or x for unassigned
+  • Status: "To Do", "In Progress", "Done"
+  • Priority: Low, Medium, High, Critical
+  • Created: -7d, week, month, -1h, -30m
+  • Labels: backend,frontend (comma-separated)
+
+==============================================================================
+7. TROUBLESHOOTING                                   *jira-nvim-troubleshooting*
+
+Jira CLI not found:
+  Verify jira-cli is installed: `which jira` and `jira version`
+
+Authentication issues:
+  Configure Jira credentials: `jira init`
+
+Permission errors:
+  Check that your Jira user has appropriate permissions.
+
+Form submission issues:
+  • Use <leader>js or <C-s> in insert mode to submit forms
+  • Ensure required fields (Type and Summary) are filled
+  • Verify jira-cli works: `jira issue list` in terminal
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
