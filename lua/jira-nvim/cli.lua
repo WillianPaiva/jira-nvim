@@ -138,4 +138,42 @@ function M.board_list()
   end)
 end
 
+function M.issue_transition(issue_key, state, comment, assignee, resolution)
+  local valid, error_msg = utils.validate_issue_key(issue_key)
+  if not valid then
+    utils.show_warning(error_msg)
+    return
+  end
+  
+  if not state or state == '' then
+    utils.show_warning('State is required for issue transition')
+    return
+  end
+  
+  local args = string.format('"%s" "%s"', issue_key, state)
+  
+  if comment and comment ~= '' then
+    args = args .. ' --comment "' .. comment .. '"'
+  end
+  
+  if assignee and assignee ~= '' then
+    args = args .. ' --assignee "' .. assignee .. '"'
+  end
+  
+  if resolution and resolution ~= '' then
+    args = args .. ' --resolution "' .. resolution .. '"'
+  end
+  
+  execute_jira_cmd('issue move', args, function(err, output)
+    if err then
+      utils.show_error('Error transitioning issue: ' .. err)
+      return
+    end
+    utils.show_info('Issue ' .. issue_key .. ' transitioned to "' .. state .. '"')
+    if output and output ~= '' then
+      ui.show_output('Issue Transitioned', output)
+    end
+  end)
+end
+
 return M

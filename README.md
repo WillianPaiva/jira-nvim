@@ -70,6 +70,23 @@ return {
         end, desc = "View Issue"
       },
       { "<leader>jc", "<cmd>JiraIssueCreate<cr>", desc = "Create Issue (Form)" },
+      { "<leader>jt", function() 
+          vim.ui.input({
+            prompt = "Issue Key: ",
+            default = vim.fn.expand("<cword>")
+          }, function(issue_key)
+            if issue_key and issue_key ~= "" then
+              vim.ui.input({
+                prompt = "New State: ",
+              }, function(state)
+                if state and state ~= "" then
+                  vim.cmd("JiraIssueTransition " .. issue_key .. " \"" .. state .. "\"")
+                end
+              end)
+            end
+          end)
+        end, desc = "Transition Issue"
+      },
       
       -- Sprint management  
       { "<leader>js", "<cmd>JiraSprintList<cr>", desc = "List Sprints" },
@@ -167,6 +184,7 @@ require('jira-nvim').setup({
 | `:JiraIssueList [args]` | List/filter issues (opens form if no args) | `:JiraIssueList -a$(jira me) -s"To Do"` |
 | `:JiraIssueView <key>` | View issue details | `:JiraIssueView PROJ-123` |
 | `:JiraIssueCreate [args]` | Create new issue (opens form if no args) | `:JiraIssueCreate -tBug -s"Bug title"` |
+| `:JiraIssueTransition <key> <state> [comment] [assignee] [resolution]` | Transition issue to new state | `:JiraIssueTransition PROJ-123 "In Progress"` |
 | `:JiraSprintList [args]` | List sprints | `:JiraSprintList --current` |
 | `:JiraEpicList [args]` | List epics | `:JiraEpicList --table` |
 | `:JiraOpen [key]` | Open in browser | `:JiraOpen PROJ-123` |
@@ -186,6 +204,7 @@ require('jira-nvim').setup({
 - `<leader>jh` - **High Priority Issues** - High priority issues only
 - `<leader>jv` - **View Issue** - View specific issue (with smart word detection)
 - `<leader>jc` - **Create Issue (Form)** - Create issue using interactive form
+- `<leader>jt` - **Transition Issue** - Change issue status with interactive prompts
 
 ### Sprint & Epic Management
 - `<leader>js` - **List Sprints**
@@ -256,6 +275,10 @@ Advanced filtering form with:
 # View a specific issue (cursor on PROJ-123)
 <leader>jv
 
+# Transition an issue (cursor on PROJ-123)
+<leader>jt
+# (Enter new state like "In Progress" or "Done")
+
 # Open issue in browser
 <leader>jo
 ```
@@ -282,6 +305,9 @@ Advanced filtering form with:
 
 " Create a critical bug quickly
 :JiraIssueCreate -tBug -s"Critical production issue" -yCritical --no-input
+
+" Transition issue with comment
+:JiraIssueTransition PROJ-123 "Done" "Completed development and testing"
 
 " View current sprint issues
 :JiraSprintList --current

@@ -77,6 +77,25 @@ function M.setup(opts)
     desc = 'List Jira boards'
   })
   
+  vim.api.nvim_create_user_command('JiraIssueTransition', function(args)
+    local parts = vim.split(args.args, ' ', { plain = true })
+    local issue_key = parts[1]
+    local state = parts[2]
+    local comment = parts[3]
+    local assignee = parts[4]
+    local resolution = parts[5]
+    
+    if not issue_key or not state then
+      vim.notify('Usage: JiraIssueTransition ISSUE-KEY STATE [COMMENT] [ASSIGNEE] [RESOLUTION]', vim.log.levels.WARN)
+      return
+    end
+    
+    cli.issue_transition(issue_key, state, comment, assignee, resolution)
+  end, {
+    nargs = '+',
+    desc = 'Transition Jira issue to new state'
+  })
+  
   vim.api.nvim_create_user_command('JiraHelp', function()
     ui.show_help()
   end, {
