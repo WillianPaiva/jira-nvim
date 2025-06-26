@@ -209,13 +209,14 @@ local function create_issue_list_form()
     title_pos = 'center'
   })
   
+  local cached_user = user.get_cached_user() or "your-username"
   local template = {
     "# Jira Issue List Filter",
     "# Fill out the filters below and press <leader>js to search",
     "# Press 'q' to cancel, leave fields empty to ignore them",
     "",
     "## Common Filters",
-    "Assignee: $(jira me)",
+    "Assignee: " .. cached_user,
     "Status: ",
     "Priority: ",
     "Type: ",
@@ -233,7 +234,7 @@ local function create_issue_list_form()
     "Reverse Order: false",
     "",
     "# Examples:",
-    "# Assignee: $(jira me), username, or 'x' for unassigned",
+    "# Assignee: your-username, username, or 'x' for unassigned",
     "# Status: \"To Do\", \"In Progress\", \"Done\"",
     "# Priority: Low, Medium, High, Critical",
     "# Type: Bug, Story, Task, Epic",
@@ -248,7 +249,8 @@ local function create_issue_list_form()
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
   
   -- Position cursor at the assignee field
-  vim.api.nvim_win_set_cursor(win, {6, 19}) -- Line 6, after "Assignee: $(jira me)"
+  local assignee_line = "Assignee: " .. cached_user
+  vim.api.nvim_win_set_cursor(win, {6, #assignee_line + 1}) -- Line 6, at end of assignee value
   vim.cmd('startinsert!')
   
   -- Set keymaps for the form
@@ -449,15 +451,30 @@ end
 
 -- Quick preset functions for common use cases
 function M.my_issues()
-  cli.issue_list('-a$(jira me)')
+  local username = user.get_cached_user()
+  if username then
+    cli.issue_list('-a"' .. username .. '"')
+  else
+    utils.show_warning('User not yet loaded. Please wait and try again.')
+  end
 end
 
 function M.my_todo_issues()
-  cli.issue_list('-a$(jira me) -s"To Do"')
+  local username = user.get_cached_user()
+  if username then
+    cli.issue_list('-a"' .. username .. '" -s"To Do"')
+  else
+    utils.show_warning('User not yet loaded. Please wait and try again.')
+  end
 end
 
 function M.my_in_progress_issues()
-  cli.issue_list('-a$(jira me) -s"In Progress"')
+  local username = user.get_cached_user()
+  if username then
+    cli.issue_list('-a"' .. username .. '" -s"In Progress"')
+  else
+    utils.show_warning('User not yet loaded. Please wait and try again.')
+  end
 end
 
 function M.recent_issues()

@@ -130,7 +130,7 @@ function M.show_help()
     '  v         - View issue details',
     '',
     'Examples:',
-    '  :JiraIssueList -a$(jira me) -s"To Do"',
+    '  :JiraIssueList -a"your-username" -s"To Do"',
     '  :JiraIssueView PROJ-123',
     '  :JiraIssueCreate -tBug -s"Bug title"'
   }
