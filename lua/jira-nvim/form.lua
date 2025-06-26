@@ -3,6 +3,7 @@ local M = {}
 local config = require('jira-nvim.config')
 local cli = require('jira-nvim.cli')
 local utils = require('jira-nvim.utils')
+local user = require('jira-nvim.user')
 
 local function create_issue_form()
   local buf = vim.api.nvim_create_buf(false, true)
@@ -278,7 +279,7 @@ function M.submit_issue_list_form(buf, win)
       if assignee then
         assignee = assignee:gsub("^%s*(.-)%s*$", "%1")
         if assignee ~= "" then
-          filters.assignee = assignee
+          filters.assignee = user.expand_user_patterns(assignee)
         end
       end
     elseif line:match("^Status:%s*(.+)") then

@@ -3,6 +3,7 @@ local M = {}
 local config = require('jira-nvim.config')
 local ui = require('jira-nvim.ui')
 local utils = require('jira-nvim.utils')
+local user = require('jira-nvim.user')
 
 local function execute_jira_cmd(cmd, args, callback)
   if not utils.is_jira_available() then
@@ -12,9 +13,10 @@ local function execute_jira_cmd(cmd, args, callback)
   
   local jira_cmd = config.get('jira_cmd')
   local sanitized_args = utils.sanitize_args(args or '')
-  local full_cmd = string.format('%s %s %s', jira_cmd, cmd, sanitized_args)
+  local expanded_args = user.expand_user_patterns(sanitized_args)
+  local full_cmd = string.format('%s %s %s', jira_cmd, cmd, expanded_args)
   
-  vim.fn.jobstart({'sh', '-c', full_cmd}, {
+  vim.fn.jobstart(full_cmd, {
     stdout_buffered = true,
     stderr_buffered = true,
     on_stdout = function(_, data)

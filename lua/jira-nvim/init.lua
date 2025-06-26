@@ -4,12 +4,16 @@ local config = require('jira-nvim.config')
 local cli = require('jira-nvim.cli')
 local ui = require('jira-nvim.ui')
 local form = require('jira-nvim.form')
+local user = require('jira-nvim.user')
 
 -- Check if LazyVim is available for better integration
 local has_lazyvim = pcall(require, "lazyvim.util")
 
 function M.setup(opts)
   config.setup(opts or {})
+  
+  -- Initialize user cache
+  user.init()
   
   vim.api.nvim_create_user_command('JiraIssueList', function(args)
     if args.args and args.args ~= '' then
