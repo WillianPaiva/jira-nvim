@@ -78,6 +78,17 @@ function M.show_output(title, content)
     return issue_key
   end
   
+  local function get_issue_key_from_buffer(title)
+    -- First try to extract from buffer title (e.g., "Issue: PROJ-123")
+    local issue_key = title:match('Issue:%s*([A-Z]+-[0-9]+)')
+    if issue_key then
+      return issue_key
+    end
+    
+    -- Fallback to cursor detection
+    return get_issue_key_under_cursor()
+  end
+  
   vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.open_browser, '', {
     noremap = true,
     silent = true,
@@ -106,6 +117,26 @@ function M.show_output(title, content)
     desc = 'View issue details'
   })
   
+  vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.transition_issue, '', {
+    noremap = true,
+    silent = true,
+    callback = function()
+      local issue_key = get_issue_key_from_buffer(title)
+      if issue_key then
+        vim.ui.input({
+          prompt = 'New state for ' .. issue_key .. ': ',
+        }, function(state)
+          if state and state ~= '' then
+            require('jira-nvim.cli').issue_transition(issue_key, state)
+          end
+        end)
+      else
+        vim.notify('No issue key found in buffer', vim.log.levels.WARN)
+      end
+    end,
+    desc = 'Transition issue state'
+  })
+  
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'cursorline', true)
 end
@@ -128,6 +159,7 @@ function M.show_help()
     '  <C-r>     - Refresh (not implemented)',
     '  <CR>      - Open issue in browser',
     '  v         - View issue details',
+    '  t         - Transition issue state',
     '',
     'Examples:',
     '  :JiraIssueList -a"your-username" -s"To Do"',

@@ -10,7 +10,8 @@ local defaults = {
     close = 'q',
     refresh = '<C-r>',
     open_browser = '<CR>',
-    view_issue = 'v'
+    view_issue = 'v',
+    transition_issue = 't'
   }
 }
 

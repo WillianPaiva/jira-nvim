@@ -46,7 +46,8 @@ return {
         close = "q",
         refresh = "<C-r>",
         open_browser = "<CR>",
-        view_issue = "v"
+        view_issue = "v",
+        transition_issue = "t"
       }
     },
     keys = {
@@ -172,7 +173,8 @@ require('jira-nvim').setup({
     close = 'q',                        -- Close window
     refresh = '<C-r>',                  -- Refresh content
     open_browser = '<CR>',              -- Open issue in browser
-    view_issue = 'v'                    -- View issue details
+    view_issue = 'v',                   -- View issue details
+    transition_issue = 't'              -- Transition issue state
   }
 })
 ```
@@ -224,6 +226,7 @@ require('jira-nvim').setup({
 - `<C-r>` - Refresh content (planned)
 - `<CR>` - Open issue under cursor in browser
 - `v` - View details of issue under cursor
+- `t` - Transition current issue state (prompts for new state)
 
 ## 📝 Interactive Forms
 
@@ -278,6 +281,9 @@ Advanced filtering form with:
 # Transition an issue (cursor on PROJ-123)
 <leader>jt
 # (Enter new state like "In Progress" or "Done")
+
+# Or while viewing an issue, press 't' to transition
+# (automatically detects issue from buffer title)
 
 # Open issue in browser
 <leader>jo
