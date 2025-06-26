@@ -274,58 +274,91 @@ function M.submit_issue_list_form(buf, win)
   for i, line in ipairs(lines) do
     if line:match("^Assignee:%s*(.+)") then
       local assignee = line:match("^Assignee:%s*(.+)")
-      if assignee and assignee ~= "" then
-        filters.assignee = assignee
+      if assignee then
+        assignee = assignee:gsub("^%s*(.-)%s*$", "%1")
+        if assignee ~= "" then
+          filters.assignee = assignee
+        end
       end
     elseif line:match("^Status:%s*(.+)") then
       local status = line:match("^Status:%s*(.+)")
-      if status and status ~= "" then
-        filters.status = status
+      if status then
+        status = status:gsub("^%s*(.-)%s*$", "%1")
+        if status ~= "" then
+          filters.status = status
+        end
       end
     elseif line:match("^Priority:%s*(.+)") then
       local priority = line:match("^Priority:%s*(.+)")
-      if priority and priority ~= "" then
-        filters.priority = priority
+      if priority then
+        priority = priority:gsub("^%s*(.-)%s*$", "%1")
+        if priority ~= "" then
+          filters.priority = priority
+        end
       end
     elseif line:match("^Type:%s*(.+)") then
       local issue_type = line:match("^Type:%s*(.+)")
-      if issue_type and issue_type ~= "" then
-        filters.type = issue_type
+      if issue_type then
+        issue_type = issue_type:gsub("^%s*(.-)%s*$", "%1")
+        if issue_type ~= "" then
+          filters.type = issue_type
+        end
       end
     elseif line:match("^Labels:%s*(.+)") then
       local labels = line:match("^Labels:%s*(.+)")
-      if labels and labels ~= "" then
-        filters.labels = labels
+      if labels then
+        labels = labels:gsub("^%s*(.-)%s*$", "%1")
+        if labels ~= "" then
+          filters.labels = labels
+        end
       end
     elseif line:match("^Components:%s*(.+)") then
       local components = line:match("^Components:%s*(.+)")
-      if components and components ~= "" then
-        filters.components = components
+      if components then
+        components = components:gsub("^%s*(.-)%s*$", "%1")
+        if components ~= "" then
+          filters.components = components
+        end
       end
     elseif line:match("^Created:%s*(.+)") then
       local created = line:match("^Created:%s*(.+)")
-      if created and created ~= "" then
-        filters.created = created
+      if created then
+        created = created:gsub("^%s*(.-)%s*$", "%1")
+        if created ~= "" then
+          filters.created = created
+        end
       end
     elseif line:match("^Updated:%s*(.+)") then
       local updated = line:match("^Updated:%s*(.+)")
-      if updated and updated ~= "" then
-        filters.updated = updated
+      if updated then
+        updated = updated:gsub("^%s*(.-)%s*$", "%1")
+        if updated ~= "" then
+          filters.updated = updated
+        end
       end
     elseif line:match("^Created Before:%s*(.+)") then
       local created_before = line:match("^Created Before:%s*(.+)")
-      if created_before and created_before ~= "" then
-        filters.created_before = created_before
+      if created_before then
+        created_before = created_before:gsub("^%s*(.-)%s*$", "%1")
+        if created_before ~= "" then
+          filters.created_before = created_before
+        end
       end
     elseif line:match("^JQL Query:%s*(.+)") then
       local jql = line:match("^JQL Query:%s*(.+)")
-      if jql and jql ~= "" then
-        filters.jql = jql
+      if jql then
+        jql = jql:gsub("^%s*(.-)%s*$", "%1")
+        if jql ~= "" then
+          filters.jql = jql
+        end
       end
     elseif line:match("^Order By:%s*(.+)") then
       local order_by = line:match("^Order By:%s*(.+)")
-      if order_by and order_by ~= "" and order_by ~= "created" then
-        filters.order_by = order_by
+      if order_by then
+        order_by = order_by:gsub("^%s*(.-)%s*$", "%1")
+        if order_by ~= "" and order_by ~= "created" then
+          filters.order_by = order_by
+        end
       end
     elseif line:match("^Reverse Order:%s*(.+)") then
       local reverse = line:match("^Reverse Order:%s*(.+)")
