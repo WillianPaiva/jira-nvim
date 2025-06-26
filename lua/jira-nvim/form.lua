@@ -227,7 +227,7 @@ local function create_issue_list_form()
     "Created Before: ",
     "",
     "## Advanced",
-    "JQL Query: ",
+    "JQL Query: project IS NOT EMPTY",
     "Order By: created",
     "Reverse Order: false",
     "",
@@ -238,6 +238,7 @@ local function create_issue_list_form()
     "# Type: Bug, Story, Task, Epic",
     "# Created: -7d, week, month, -1h, -30m",
     "# Labels: backend,frontend (comma separated)",
+    "# JQL Query: project IS NOT EMPTY (searches all projects)",
   }
   
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, template)

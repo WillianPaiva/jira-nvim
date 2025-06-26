@@ -40,10 +40,14 @@ local function execute_jira_cmd(cmd, args, callback)
 end
 
 function M.issue_list(args)
-  local cmd_args = args and args ~= '' and args or ''
+  local cmd_args = args and args ~= '' and args or '-q"project IS NOT EMPTY"'
   execute_jira_cmd('issue list', cmd_args, function(err, output)
     if err then
-      utils.show_error('Error listing issues: ' .. err)
+      if err:match("No result found for given query") then
+        utils.show_warning('No issues found matching your criteria. Try adjusting your filters or use JQL: "project IS NOT EMPTY" to search all projects.')
+      else
+        utils.show_error('Error listing issues: ' .. err)
+      end
       return
     end
     ui.show_output('Jira Issues', output)
