@@ -77,11 +77,26 @@ return {
             default = vim.fn.expand("<cword>")
           }, function(issue_key)
             if issue_key and issue_key ~= "" then
-              vim.ui.input({
-                prompt = "New State: ",
-              }, function(state)
-                if state and state ~= "" then
-                  vim.cmd("JiraIssueTransition " .. issue_key .. " \"" .. state .. "\"")
+              -- Get available transitions and show as options
+              require('jira-nvim.cli').get_available_transitions(issue_key, function(err, states)
+                if err then
+                  -- Fallback to manual input if we can't get transitions
+                  vim.ui.input({
+                    prompt = "New State: ",
+                  }, function(state)
+                    if state and state ~= "" then
+                      vim.cmd("JiraIssueTransition " .. issue_key .. " \"" .. state .. "\"")
+                    end
+                  end)
+                else
+                  -- Show available states as options
+                  vim.ui.select(states, {
+                    prompt = 'Select new state for ' .. issue_key .. ':',
+                  }, function(choice)
+                    if choice then
+                      require('jira-nvim.cli').issue_transition(issue_key, choice)
+                    end
+                  end)
                 end
               end)
             end
@@ -206,7 +221,7 @@ require('jira-nvim').setup({
 - `<leader>jh` - **High Priority Issues** - High priority issues only
 - `<leader>jv` - **View Issue** - View specific issue (with smart word detection)
 - `<leader>jc` - **Create Issue (Form)** - Create issue using interactive form
-- `<leader>jt` - **Transition Issue** - Change issue status with interactive prompts
+- `<leader>jt` - **Transition Issue** - Change issue status with available state options
 
 ### Sprint & Epic Management
 - `<leader>js` - **List Sprints**
@@ -226,7 +241,7 @@ require('jira-nvim').setup({
 - `<C-r>` - Refresh content (planned)
 - `<CR>` - Open issue under cursor in browser
 - `v` - View details of issue under cursor
-- `t` - Transition current issue state (prompts for new state)
+- `t` - Transition current issue state (shows available state options)
 
 ## 📝 Interactive Forms
 

@@ -138,6 +138,41 @@ function M.board_list()
   end)
 end
 
+function M.get_available_transitions(issue_key, callback)
+  local valid, error_msg = utils.validate_issue_key(issue_key)
+  if not valid then
+    callback(error_msg, nil)
+    return
+  end
+  
+  -- Try an invalid transition to get the available states from error message
+  local args = string.format('"%s" "INVALID_STATE_TO_GET_AVAILABLE_STATES"', issue_key)
+  
+  execute_jira_cmd('issue move', args, function(err, output)
+    if err then
+      -- Parse available states from error message
+      -- Example: "Available states for issue PROJ-123: 'State1', 'State2', 'State3'"
+      local states_match = err:match("Available states for issue [^:]+: (.+)")
+      if states_match then
+        local states = {}
+        -- Extract states from single quotes
+        for state in states_match:gmatch("'([^']+)'") do
+          table.insert(states, state)
+        end
+        if #states > 0 then
+          callback(nil, states)
+          return
+        end
+      end
+      -- If we can't parse the states, fall back to error
+      callback(err, nil)
+    else
+      -- This shouldn't happen with an invalid state, but just in case
+      callback('Could not retrieve available transitions', nil)
+    end
+  end)
+end
+
 function M.issue_transition(issue_key, state, comment, assignee, resolution)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then

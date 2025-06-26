@@ -119,19 +119,35 @@ function M.show_output(title, content)
   
   -- Only set the transition keymap if it exists in config
   if keymaps.transition_issue then
-    -- Debug: show what keymap is being set
-    vim.notify('Setting transition keymap: ' .. keymaps.transition_issue, vim.log.levels.INFO)
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.transition_issue, '', {
       noremap = true,
       silent = true,
       callback = function()
         local issue_key = get_issue_key_from_buffer(title)
         if issue_key then
-          vim.ui.input({
-            prompt = 'New state for ' .. issue_key .. ': ',
-          }, function(state)
-            if state and state ~= '' then
-              require('jira-nvim.cli').issue_transition(issue_key, state)
+          -- First get available transitions
+          require('jira-nvim.cli').get_available_transitions(issue_key, function(err, states)
+            if err then
+              -- Fallback to manual input if we can't get transitions
+              vim.ui.input({
+                prompt = 'New state for ' .. issue_key .. ': ',
+              }, function(state)
+                if state and state ~= '' then
+                  require('jira-nvim.cli').issue_transition(issue_key, state)
+                end
+              end)
+            else
+              -- Show available states as options
+              vim.ui.select(states, {
+                prompt = 'Select new state for ' .. issue_key .. ':',
+                format_item = function(item)
+                  return item
+                end,
+              }, function(choice)
+                if choice then
+                  require('jira-nvim.cli').issue_transition(issue_key, choice)
+                end
+              end)
             end
           end)
         else
@@ -164,7 +180,7 @@ function M.show_help()
     '  <C-r>     - Refresh (not implemented)',
     '  <CR>      - Open issue in browser',
     '  v         - View issue details',
-    '  t         - Transition issue state',
+    '  t         - Transition issue state (shows available options)',
     '',
     'Examples:',
     '  :JiraIssueList -a"your-username" -s"To Do"',
