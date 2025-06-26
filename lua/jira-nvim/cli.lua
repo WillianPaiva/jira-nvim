@@ -14,7 +14,7 @@ local function execute_jira_cmd(cmd, args, callback)
   local sanitized_args = utils.sanitize_args(args or '')
   local full_cmd = string.format('%s %s %s', jira_cmd, cmd, sanitized_args)
   
-  vim.fn.jobstart(full_cmd, {
+  vim.fn.jobstart({'sh', '-c', full_cmd}, {
     stdout_buffered = true,
     stderr_buffered = true,
     on_stdout = function(_, data)
