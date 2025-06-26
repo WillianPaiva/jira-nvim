@@ -40,7 +40,7 @@ local function execute_jira_cmd(cmd, args, callback)
 end
 
 function M.issue_list(args)
-  local cmd_args = args and args or '--plain'
+  local cmd_args = args and args ~= '' and args or ''
   execute_jira_cmd('issue list', cmd_args, function(err, output)
     if err then
       utils.show_error('Error listing issues: ' .. err)
@@ -123,7 +123,7 @@ function M.project_list()
 end
 
 function M.board_list()
-  execute_jira_cmd('board list', '--plain', function(err, output)
+  execute_jira_cmd('board list', '', function(err, output)
     if err then
       utils.show_error('Error listing boards: ' .. err)
       return

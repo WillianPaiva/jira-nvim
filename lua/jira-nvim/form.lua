@@ -336,7 +336,7 @@ function M.submit_issue_list_form(buf, win)
   end
   
   -- Build command arguments
-  local args = { '--plain' }
+  local args = {}
   
   if filters.assignee then
     table.insert(args, string.format('-a"%s"', filters.assignee))
@@ -414,27 +414,27 @@ end
 
 -- Quick preset functions for common use cases
 function M.my_issues()
-  cli.issue_list('-a$(jira me) --plain')
+  cli.issue_list('-a$(jira me)')
 end
 
 function M.my_todo_issues()
-  cli.issue_list('-a$(jira me) -s"To Do" --plain')
+  cli.issue_list('-a$(jira me) -s"To Do"')
 end
 
 function M.my_in_progress_issues()
-  cli.issue_list('-a$(jira me) -s"In Progress" --plain')
+  cli.issue_list('-a$(jira me) -s"In Progress"')
 end
 
 function M.recent_issues()
-  cli.issue_list('--created -7d --plain')
+  cli.issue_list('--created -7d')
 end
 
 function M.unassigned_issues()
-  cli.issue_list('-ax --plain')
+  cli.issue_list('-ax')
 end
 
 function M.high_priority_issues()
-  cli.issue_list('-yHigh --plain')
+  cli.issue_list('-yHigh')
 end
 
 return M
