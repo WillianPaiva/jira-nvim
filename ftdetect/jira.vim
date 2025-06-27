@@ -1,0 +1,1 @@
+autocmd BufNewFile,BufRead *.jira set filetype=jira

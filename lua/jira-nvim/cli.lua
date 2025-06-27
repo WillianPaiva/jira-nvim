@@ -5,7 +5,7 @@ local ui = require('jira-nvim.ui')
 local utils = require('jira-nvim.utils')
 local user = require('jira-nvim.user')
 
-local function execute_jira_cmd(cmd, args, callback)
+local function execute_jira_cmd(cmd, args, callback, show_progress)
   if not utils.is_jira_available() then
     utils.show_error('Jira CLI not found. Please install jira-cli first.')
     return
@@ -16,16 +16,33 @@ local function execute_jira_cmd(cmd, args, callback)
   local expanded_args = user.expand_user_patterns(sanitized_args)
   local full_cmd = string.format('%s %s %s', jira_cmd, cmd, expanded_args)
   
+  -- Show progress indicator if requested
+  local progress_timer
+  if show_progress ~= false then
+    local frames = {'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
+    local frame_idx = 1
+    progress_timer = vim.fn.timer_start(100, function()
+      utils.show_info('Loading ' .. frames[frame_idx] .. ' ' .. cmd:gsub('issue ', ''))
+      frame_idx = frame_idx % #frames + 1
+    end, { ['repeat'] = -1 })
+  end
+  
   vim.fn.jobstart(full_cmd, {
     stdout_buffered = true,
     stderr_buffered = true,
     on_stdout = function(_, data)
+      if progress_timer then
+        vim.fn.timer_stop(progress_timer)
+      end
       if callback then
         local output = table.concat(data, '\n')
         callback(nil, output)
       end
     end,
     on_stderr = function(_, data)
+      if progress_timer then
+        vim.fn.timer_stop(progress_timer)
+      end
       if callback then
         local error_msg = table.concat(data, '\n')
         if error_msg and error_msg:match("^%s*(.-)%s*$") ~= '' then
@@ -34,6 +51,9 @@ local function execute_jira_cmd(cmd, args, callback)
       end
     end,
     on_exit = function(_, code)
+      if progress_timer then
+        vim.fn.timer_stop(progress_timer)
+      end
       if code ~= 0 and callback then
         callback('Command failed with exit code: ' .. code, nil)
       end
@@ -56,18 +76,28 @@ function M.issue_list(args)
   end)
 end
 
-function M.issue_view(issue_key)
+function M.issue_view(issue_key, show_comments)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
     utils.show_warning(error_msg)
     return
   end
   
-  execute_jira_cmd('issue view', issue_key, function(err, output)
+  local args = issue_key
+  if show_comments then
+    args = args .. ' --comments ' .. tostring(show_comments)
+  end
+  
+  execute_jira_cmd('issue view', args, function(err, output)
     if err then
       utils.show_error('Error viewing issue: ' .. err)
       return
     end
+    
+    -- Add to search history
+    local search = require('jira-nvim.search')
+    search.add_to_history(issue_key)
+    
     ui.show_output('Issue: ' .. issue_key, output)
   end)
 end
@@ -209,6 +239,111 @@ function M.issue_transition(issue_key, state, comment, assignee, resolution)
       ui.show_output('Issue Transitioned', output)
     end
   end)
+end
+
+function M.issue_comment_add(issue_key, comment_body)
+  local valid, error_msg = utils.validate_issue_key(issue_key)
+  if not valid then
+    utils.show_warning(error_msg)
+    return
+  end
+  
+  if not comment_body or comment_body:match('^%s*$') then
+    utils.show_warning('Comment body is required')
+    return
+  end
+  
+  local args = string.format('%s "%s"', issue_key, comment_body:gsub('"', '\\"'))
+  
+  execute_jira_cmd('issue comment add', args, function(err, output)
+    if err then
+      utils.show_error('Error adding comment: ' .. err)
+      return
+    end
+    utils.show_info('Comment added to issue ' .. issue_key)
+    if output and output ~= '' then
+      ui.show_output('Comment Added', output)
+    end
+  end)
+end
+
+function M.issue_comment_add_from_buffer(issue_key, buf)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local comment_body = table.concat(lines, '\n')
+  
+  if comment_body:match('^%s*$') then
+    utils.show_warning('Comment cannot be empty')
+    return
+  end
+  
+  M.issue_comment_add(issue_key, comment_body)
+end
+
+function M.issue_assign(issue_key, assignee)
+  local valid, error_msg = utils.validate_issue_key(issue_key)
+  if not valid then
+    utils.show_warning(error_msg)
+    return
+  end
+  
+  if not assignee or assignee:match('^%s*$') then
+    utils.show_warning('Assignee is required')
+    return
+  end
+  
+  -- Handle special cases
+  if assignee:lower() == 'me' or assignee:lower() == 'self' then
+    assignee = '$(jira me)'
+  elseif assignee:lower() == 'unassign' or assignee:lower() == 'none' then
+    assignee = 'x'
+  elseif assignee:lower() == 'default' then
+    assignee = 'default'
+  end
+  
+  local args = string.format('%s "%s"', issue_key, assignee)
+  
+  execute_jira_cmd('issue assign', args, function(err, output)
+    if err then
+      utils.show_error('Error assigning issue: ' .. err)
+      return
+    end
+    utils.show_info('Issue ' .. issue_key .. ' assigned to ' .. assignee)
+    if output and output ~= '' then
+      ui.show_output('Issue Assigned', output)
+    end
+  end)
+end
+
+function M.issue_watch(issue_key, watcher)
+  local valid, error_msg = utils.validate_issue_key(issue_key)
+  if not valid then
+    utils.show_warning(error_msg)
+    return
+  end
+  
+  watcher = watcher or '$(jira me)' -- Default to self
+  
+  -- Handle special cases
+  if watcher:lower() == 'me' or watcher:lower() == 'self' then
+    watcher = '$(jira me)'
+  end
+  
+  local args = string.format('%s "%s"', issue_key, watcher)
+  
+  execute_jira_cmd('issue watch', args, function(err, output)
+    if err then
+      utils.show_error('Error adding watcher: ' .. err)
+      return
+    end
+    utils.show_info('Added ' .. watcher .. ' to watchers for ' .. issue_key)
+    if output and output ~= '' then
+      ui.show_output('Watcher Added', output)
+    end
+  end)
+end
+
+function M.get_current_user(callback)
+  execute_jira_cmd('me', '', callback)
 end
 
 return M
