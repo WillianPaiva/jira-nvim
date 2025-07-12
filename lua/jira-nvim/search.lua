@@ -81,10 +81,10 @@ end
 function M.toggle_bookmark(issue_key, description)
   if bookmarks[issue_key] then
     M.remove_bookmark(issue_key)
-    utils.show_info('Removed bookmark for ' .. issue_key)
+    utils.show_info('Removed bookmark for ' .. issue_key, { searching = true })
   else
     M.add_bookmark(issue_key, description)
-    utils.show_info('Added bookmark for ' .. issue_key)
+    utils.show_info('Added bookmark for ' .. issue_key, { searching = true })
   end
 end
 

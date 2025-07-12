@@ -59,7 +59,13 @@ function M.show_error(message)
   end
 end
 
-function M.show_info(message)
+function M.show_info(message, opts)
+  opts = opts or {}
+  -- If searching, don't show notifications
+  if opts.searching then
+    return
+  end
+
   local has_lazyvim, LazyVim = pcall(require, "lazyvim.util")
   if has_lazyvim and LazyVim.info then
     LazyVim.info(message, { title = "Jira" })
