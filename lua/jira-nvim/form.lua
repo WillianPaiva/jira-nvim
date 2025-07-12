@@ -130,49 +130,17 @@ function M.submit_issue_form(buf, win)
     return
   end
   
-  -- Build command arguments
-  local args = {}
-  
-  table.insert(args, string.format('-t"%s"', issue_data.type))
-  table.insert(args, string.format('-s"%s"', issue_data.summary))
-  
-  if issue_data.priority and issue_data.priority ~= "" and issue_data.priority ~= "Medium" then
-    table.insert(args, string.format('-y"%s"', issue_data.priority))
-  end
-  
-  if issue_data.assignee and issue_data.assignee ~= "" then
-    table.insert(args, string.format('-a"%s"', issue_data.assignee))
-  end
-  
-  if issue_data.labels and issue_data.labels ~= "" then
-    for label in issue_data.labels:gmatch("[^,]+") do
-      local trimmed_label = label:gsub("^%s*(.-)%s*$", "%1")
-      if trimmed_label ~= "" then
-        table.insert(args, string.format('-l"%s"', trimmed_label))
-      end
-    end
-  end
-  
-  if issue_data.components and issue_data.components ~= "" then
-    for component in issue_data.components:gmatch("[^,]+") do
-      local trimmed_component = component:gsub("^%s*(.-)%s*$", "%1")
-      if trimmed_component ~= "" then
-        table.insert(args, string.format('-C"%s"', trimmed_component))
-      end
-    end
-  end
-  
-  if issue_data.fix_version and issue_data.fix_version ~= "" then
-    table.insert(args, string.format('--fix-version "%s"', issue_data.fix_version))
-  end
-  
-  if issue_data.description and issue_data.description ~= "" then
-    table.insert(args, string.format('-b"%s"', issue_data.description:gsub('"', '\\"')))
-  end
-  
-  table.insert(args, '--no-input')
-  
-  local cmd_args = table.concat(args, ' ')
+  local cmd_args = utils.build_cmd_args({
+    { flag = '-t', value = issue_data.type },
+    { flag = '-s', value = issue_data.summary },
+    { flag = '-y', value = issue_data.priority, default = "Medium" },
+    { flag = '-a', value = issue_data.assignee },
+    { flag = '-l', value = issue_data.labels, multi = true },
+    { flag = '-C', value = issue_data.components, multi = true },
+    { flag = '--fix-version', value = issue_data.fix_version },
+    { flag = '-b', value = issue_data.description, quote = true },
+    { flag = '--no-input' },
+  })
   
   -- Close the form window
   vim.api.nvim_win_close(win, true)
@@ -186,6 +154,129 @@ end
 
 function M.create_issue()
   create_issue_form()
+end
+
+function M.create_project_form()
+  local buf = vim.api.nvim_create_buf(false, true)
+
+  local width = math.floor(vim.o.columns * 0.6)
+  local height = math.floor(vim.o.lines * 0.5)
+
+  local col = math.floor((vim.o.columns - width) / 2)
+  local row = math.floor((vim.o.lines - height) / 2)
+
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    col = col,
+    row = row,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Create Jira Project ',
+    title_pos = 'center'
+  })
+
+  local template = {
+    "# Jira Project Creation Form",
+    "# Fill out the details below and press <leader>js to submit",
+    "# Press 'q' to cancel",
+    "",
+    "## Required Fields",
+    "Key: ",
+    "Name: ",
+    "Template: ",
+    "",
+    "## Optional Fields",
+    "Description: ",
+  }
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, template)
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+
+  -- Position cursor at the key field
+  vim.api.nvim_win_set_cursor(win, {6, 6}) -- Line 6, after "Key: "
+  vim.cmd('startinsert!')
+
+  -- Set keymaps for the form
+  local opts = { noremap = true, silent = true, buffer = buf }
+
+  vim.keymap.set('n', 'q', function()
+    vim.api.nvim_win_close(win, true)
+  end, vim.tbl_extend('force', opts, { desc = 'Cancel project creation' }))
+
+  vim.keymap.set('n', '<leader>js', function()
+    M.submit_project_form(buf, win)
+  end, vim.tbl_extend('force', opts, { desc = 'Submit project' }))
+
+  vim.keymap.set('i', '<C-s>', function()
+    M.submit_project_form(buf, win)
+  end, vim.tbl_extend('force', opts, { desc = 'Submit project' }))
+end
+
+function M.submit_project_form(buf, win)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+
+  local project_data = {}
+
+  -- Parse the form
+  for i, line in ipairs(lines) do
+    if line:match("^Key:%s*(.+)") then
+      project_data.key = line:match("^Key:%s*(.+)")
+    elseif line:match("^Name:%s*(.+)") then
+      project_data.name = line:match("^Name:%s*(.+)")
+    elseif line:match("^Template:%s*(.+)") then
+      project_data.template = line:match("^Template:%s*(.+)")
+    elseif line:match("^Description:%s*(.+)") then
+      project_data.description = line:match("^Description:%s*(.+)")
+    end
+  end
+
+  -- Validate required fields
+  if not project_data.key or project_data.key == "" then
+    utils.show_error("Key is required")
+    return
+  end
+
+  if not project_data.name or project_data.name == "" then
+    utils.show_error("Name is required")
+    return
+  end
+
+  if not project_data.template or project_data.template == "" then
+    utils.show_error("Template is required")
+    return
+  end
+
+  -- Build command arguments
+  local args = {}
+
+  table.insert(args, string.format('--key "%s"', project_data.key))
+  table.insert(args, string.format('--name "%s"', project_data.name))
+  table.insert(args, string.format('--template "%s"', project_data.template))
+
+  if project_data.description and project_data.description ~= "" then
+    table.insert(args, string.format('--description "%s"', project_data.description))
+  end
+
+  table.insert(args, '--no-input')
+
+  local cmd_args = table.concat(args, ' ')
+
+  -- Close the form window
+  vim.api.nvim_win_close(win, true)
+
+  -- Show what command will be executed
+  utils.show_info("Creating project with: jira project create " .. cmd_args)
+
+  -- Execute the command
+  cli.project_create(cmd_args)
+end
+
+function M.create_project()
+  M.create_project_form()
 end
 
 local function create_issue_list_form()

@@ -49,38 +49,41 @@ function M.sanitize_args(args)
   return sanitized
 end
 
-function M.show_error(message)
-  -- Use LazyVim's notification system if available
-  local has_lazyvim, LazyVim = pcall(require, "lazyvim.util")
-  if has_lazyvim and LazyVim.error then
-    LazyVim.error(message, { title = "Jira" })
-  else
-    vim.notify('Jira Error: ' .. message, vim.log.levels.ERROR)
-  end
+function M.show_error(message, title)
+  title = title or "Jira Error"
+  vim.notify(message, vim.log.levels.ERROR, { title = title })
 end
 
-function M.show_info(message, opts)
-  opts = opts or {}
-  -- If searching, don't show notifications
-  if opts.searching then
-    return
-  end
-
-  local has_lazyvim, LazyVim = pcall(require, "lazyvim.util")
-  if has_lazyvim and LazyVim.info then
-    LazyVim.info(message, { title = "Jira" })
-  else
-    vim.notify('Jira: ' .. message, vim.log.levels.INFO)
-  end
+function M.show_info(message, title)
+  title = title or "Jira"
+  vim.notify(message, vim.log.levels.INFO, { title = title })
 end
 
-function M.show_warning(message)
-  local has_lazyvim, LazyVim = pcall(require, "lazyvim.util")
-  if has_lazyvim and LazyVim.warn then
-    LazyVim.warn(message, { title = "Jira" })
-  else
-    vim.notify('Jira Warning: ' .. message, vim.log.levels.WARN)
+function M.show_warning(message, title)
+  title = title or "Jira Warning"
+  vim.notify(message, vim.log.levels.WARN, { title = title })
+end
+
+function M.build_cmd_args(args_def)
+  local args = {}
+  for _, def in ipairs(args_def) do
+    if def.value and def.value ~= "" and (not def.default or def.value ~= def.default) then
+      if def.multi then
+        for item in def.value:gmatch("[^,]+") do
+          local trimmed_item = item:gsub("^%s*(.-)%s*$", "%1")
+          if trimmed_item ~= "" then
+            table.insert(args, string.format('%s "%s"', def.flag, trimmed_item))
+          end
+        end
+      else
+        local value = def.quote and def.value:gsub('"', '\\"') or def.value
+        table.insert(args, string.format('%s "%s"', def.flag, value))
+      end
+    elseif not def.value and def.flag then
+      table.insert(args, def.flag)
+    end
   end
+  return table.concat(args, ' ')
 end
 
 return M

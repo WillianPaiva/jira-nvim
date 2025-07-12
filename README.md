@@ -212,7 +212,8 @@ require('jira-nvim').setup({
 |---------|-------------|---------|
 | `:JiraSprintList [args]` | List sprints | `:JiraSprintList --current` |
 | `:JiraEpicList [args]` | List epics | `:JiraEpicList --table` |
-| `:JiraProjectList` | List projects | `:JiraProjectList` |
+| `:JiraProjectList [args]` | List projects | `:JiraProjectList` |
+| `:JiraProjectCreate [args]` | Create new project | `:JiraProjectCreate --key=PROJ --name="New Project" --template=scrum` |
 | `:JiraBoardList` | List boards | `:JiraBoardList` |
 
 ### Utility Commands

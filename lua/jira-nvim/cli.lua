@@ -175,7 +175,11 @@ function M.get_available_transitions(issue_key, callback)
     return
   end
   
-  -- Try an invalid transition to get the available states from error message
+  -- HACK: The jira-cli does not currently have a command to list available
+  -- transitions. This function works by attempting to transition to an invalid
+  -- state and then parsing the available states from the error message. This
+  -- is a brittle approach and may break if the error message changes in a
+  -- future version of the jira-cli.
   local args = string.format('"%s" "INVALID_STATE_TO_GET_AVAILABLE_STATES"', issue_key)
   
   execute_jira_cmd('issue move', args, function(err, output)
