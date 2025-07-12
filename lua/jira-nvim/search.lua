@@ -101,6 +101,9 @@ function M.telescope_search_issues()
   local actions = require('telescope.actions')
   local action_state = require('telescope.actions.state')
   
+  -- Show loading indicator
+  utils.show_info('Searching for issues...', { searching = true })
+
   -- Get recent issues first
   local issues = {}
   for _, item in ipairs(issue_history) do
