@@ -67,6 +67,8 @@ function M.issue_list(args)
     if err then
       if err:match("No result found for given query") then
         utils.show_warning('No issues found matching your criteria. Try adjusting your filters or use JQL: "project IS NOT EMPTY" to search all projects.')
+      elseif err:match("Authentication failed") then
+        utils.show_error('Authentication failed. Please check your Jira credentials.')
       else
         utils.show_error('Error listing issues: ' .. err)
       end
