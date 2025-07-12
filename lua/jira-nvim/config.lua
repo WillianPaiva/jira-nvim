@@ -1,6 +1,8 @@
 local M = {}
 
 local defaults = {
+  jira_url = nil,
+  project_key = nil,
   jira_cmd = 'jira',
   use_floating_window = true,
   window_width = 0.8,
@@ -39,6 +41,14 @@ M.options = {}
 
 function M.setup(opts)
   M.options = vim.tbl_deep_extend('force', defaults, opts or {})
+
+  if not M.options.jira_url then
+    M.options.jira_url = vim.fn.input("Jira URL: ")
+  end
+
+  if not M.options.project_key then
+    M.options.project_key = vim.fn.input("Jira project key: ")
+  end
 end
 
 function M.get(key)
