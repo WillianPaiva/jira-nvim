@@ -4,6 +4,7 @@ local config = require('jira-nvim.config')
 local cli = require('jira-nvim.cli')
 local utils = require('jira-nvim.utils')
 local user = require('jira-nvim.user')
+local form_enhancements = require('jira-nvim.form_enhancements')
 
 local function create_issue_form()
   local buf = vim.api.nvim_create_buf(false, true)
@@ -65,6 +66,14 @@ local function create_issue_form()
   local opts = { noremap = true, silent = true, buffer = buf }
   
   vim.keymap.set('n', 'q', function()
+    -- Close any preview windows
+    if form_enhancements.preview_buffers[buf] then
+      local preview_win = form_enhancements.preview_buffers[buf].preview_win
+      if vim.api.nvim_win_is_valid(preview_win) then
+        vim.api.nvim_win_close(preview_win, true)
+      end
+      form_enhancements.preview_buffers[buf] = nil
+    end
     vim.api.nvim_win_close(win, true)
   end, vim.tbl_extend('force', opts, { desc = 'Cancel issue creation' }))
   
@@ -76,11 +85,37 @@ local function create_issue_form()
     M.submit_issue_form(buf, win)
   end, vim.tbl_extend('force', opts, { desc = 'Submit issue' }))
   
+  -- Add markdown preview toggle
+  vim.keymap.set({'n', 'i'}, '<C-p>', function()
+    form_enhancements.toggle_markdown_preview(buf, win)
+  end, vim.tbl_extend('force', opts, { desc = 'Toggle markdown preview' }))
+  
+  -- Apply template based on issue type
+  vim.keymap.set('n', '<C-t>', function()
+    -- Get current issue type
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    for _, line in ipairs(lines) do
+      local issue_type = line:match("^Type:%s*(.+)")
+      if issue_type then
+        form_enhancements.apply_issue_template(buf, issue_type)
+        utils.show_info("Applied template for " .. issue_type)
+        break
+      end
+    end
+  end, vim.tbl_extend('force', opts, { desc = 'Apply issue type template' }))
+  
+  -- Set up autocompletion for the form
+  form_enhancements.setup_autocompletion(buf)
+  
   -- Add helpful instructions at the bottom
   vim.api.nvim_echo({
     { "Fill out the form and press ", "Normal" },
     { "<leader>js", "Special" },
-    { " to create the issue, or ", "Normal" },
+    { " to create the issue. ", "Normal" },
+    { "<C-p>", "Special" },
+    { " toggles markdown preview, ", "Normal" },
+    { "<C-t>", "Special" },
+    { " applies a template based on issue type, ", "Normal" },
     { "q", "Special" },
     { " to cancel", "Normal" }
   }, false, {})
@@ -272,6 +307,9 @@ local function create_issue_list_form()
   vim.keymap.set('i', '<C-s>', function()
     M.submit_issue_list_form(buf, win)
   end, vim.tbl_extend('force', opts, { desc = 'Apply filters' }))
+  
+  -- Set up autocompletion for the form
+  form_enhancements.setup_autocompletion(buf)
 end
 
 function M.submit_issue_list_form(buf, win)

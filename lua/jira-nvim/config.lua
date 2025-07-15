@@ -37,6 +37,18 @@ local defaults = {
   max_results = 50,           -- Maximum number of results to fetch in searches
   max_comments = 10,          -- Maximum number of comments to display
   
+  -- Integration options
+  enable_lsp_integration = false,  -- Enable LSP-based features (highlighting, hover, code actions)
+  enable_git_integration = true,   -- Enable Git workflow features
+  
+  -- Caching options
+  enable_caching = true,   -- Enable API response caching
+  cache_ttl = 300,         -- Cache time-to-live in seconds (5 minutes)
+  cache_size = 100,        -- Maximum number of items per cache type
+  
+  -- Error handling
+  enhanced_error_handling = true,  -- Enable friendly error messages with troubleshooting tips
+  
   -- Keymaps
   keymaps = {
     close = 'q',

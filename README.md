@@ -6,6 +6,8 @@ A comprehensive Neovim plugin that integrates directly with the Jira REST API to
 ![Lua](https://img.shields.io/badge/Lua-5.1+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+📚 [**Comprehensive Documentation**](./docs/DOCUMENTATION.md) | [Quick Start](#installation) | [Features](#-features) | [Configuration](#%EF%B8%8F-configuration)
+
 ## ✨ Features
 
 - **📝 Interactive Forms**: Create issues and filter lists using intuitive form interfaces
@@ -16,6 +18,12 @@ A comprehensive Neovim plugin that integrates directly with the Jira REST API to
 - **🚀 LazyVim Integration**: Seamless integration with LazyVim with proper which-key support
 - **🎯 Smart Navigation**: Auto-detect issue keys under cursor for quick actions
 - **📊 Rich Display**: Syntax-highlighted output with interactive navigation
+- **🖥️ Personalized Dashboard**: View assigned issues, sprint items, and high-priority tasks at a glance
+- **🔎 Context Awareness**: Detect Jira issues in git branches, commits, and code comments
+- **🔄 Git Integration**: Create branches, link commits, and update issues from your workflow
+- **🚦 LSP Features**: Hover tooltips, code actions, and syntax highlighting for Jira issues in code
+- **⚡ Smart Caching**: Fast response times with intelligent caching of Jira API responses
+- **🛠️ Friendly Error Handling**: Helpful error messages with troubleshooting tips
 
 ## 📋 Prerequisites
 
@@ -54,6 +62,9 @@ return {
       }
     },
     keys = {
+      -- Dashboard
+      { "<leader>jd", "<cmd>JiraDashboard<cr>", desc = "Jira Dashboard" },
+      
       -- Issue management
       { "<leader>ji", "<cmd>JiraIssueList<cr>", desc = "List Issues (Filter)" },
       { "<leader>jI", function() require("jira-nvim.form").my_issues() end, desc = "My Issues" },
@@ -198,6 +209,18 @@ require('jira-nvim').setup({
   use_floating_window = true,                     -- Use floating windows
   window_width = 0.8,                             -- Floating window width ratio
   window_height = 0.8,                            -- Floating window height ratio
+  
+  -- Integration Options
+  enable_lsp_integration = false,                 -- Enable LSP hover and code actions
+  enable_git_integration = true,                  -- Enable Git workflow features
+  
+  -- Caching Options
+  enable_caching = true,                          -- Enable API response caching
+  cache_ttl = 300,                                -- Cache time-to-live in seconds
+  cache_size = 100,                               -- Max items per cache type
+  
+  -- Error Handling
+  enhanced_error_handling = true,                 -- Enable friendly error messages
   
   -- Keymaps
   keymaps = {
@@ -380,6 +403,11 @@ Opens a comprehensive form with fields for:
 - **Fix Version**
 - **Description** (multi-line)
 
+**Enhanced Features:**
+- **Markdown Preview** - Press `<C-p>` to toggle a live preview of your description
+- **Issue Templates** - Press `<C-t>` to apply a template based on the selected issue type
+- **Smart Autocompletion** - Field-aware suggestions for users, components, priorities, and issue types
+
 **Form Controls:**
 - Fill out fields and press `<leader>js` or `<C-s>` to submit
 - Press `q` to cancel
@@ -390,6 +418,7 @@ Advanced filtering form with:
 - **Common Filters**: Assignee, Status, Priority, Type, Labels, Components
 - **Time Filters**: Created, Updated, Created Before
 - **Advanced**: JQL Query, Order By, Reverse Order
+- **Smart Autocompletion**: Field-aware suggestions for all filter fields
 
 **Examples of filter values:**
 - **Assignee**: `$(jira me)`, `username`, or `x` for unassigned
@@ -397,6 +426,108 @@ Advanced filtering form with:
 - **Priority**: `Low`, `Medium`, `High`, `Critical`
 - **Created**: `-7d`, `week`, `month`, `-1h`, `-30m`
 - **Labels**: `backend,frontend` (comma-separated)
+
+## 🚀 New Features
+
+### 📝 Enhanced Form Interface
+
+Enjoy a more powerful issue creation experience with:
+
+- **Live Markdown Preview**: Toggle with `<C-p>` to see your formatted description in real-time
+- **Issue Type Templates**: Press `<C-t>` to apply predefined templates based on the selected issue type
+- **Field Autocompletion**: Get context-aware suggestions for users, components, issue types, and more
+- **Smart Navigation**: Quickly move between form sections with intelligent field detection
+
+```bash
+# Create a new issue with enhanced form interface
+:JiraIssueCreate
+```
+
+### 🖥️ Personalized Dashboard
+
+Access a comprehensive Jira dashboard directly in Neovim showing:
+
+- Your assigned issues organized by status
+- Issues in your current active sprint
+- Recent activity from the past 7 days
+- High priority issues that need attention
+
+```bash
+# View your personalized dashboard
+:JiraDashboard
+
+# See personal statistics with metrics
+:JiraStats
+```
+
+### 🔎 Smart Context Awareness
+
+Automatically detect and interact with Jira issues in your current context:
+
+```bash
+# Show issues from current git branch, file, and commits
+:JiraContext
+
+# View issue details for issue key under cursor
+:JiraViewUnderCursor
+
+# Open issue under cursor in browser
+:JiraOpenUnderCursor
+```
+
+### 🔄 Git Workflow Integration
+
+Seamlessly integrate Jira with your Git workflow:
+
+```bash
+# Create a branch from a Jira issue with prefix (feature/bugfix/etc)
+:JiraGitBranch
+
+# Show commit history with linked Jira issues
+:JiraGitCommitHistory
+
+# Link current HEAD commit to a Jira issue
+:JiraGitLinkCommit HEAD PROJ-123
+
+# Install git hooks for automatic Jira integration
+:JiraInstallGitHooks
+```
+
+### 🚦 LSP Integration
+
+Get IDE-like features for Jira issues in your code:
+
+```bash
+# Enable LSP integration (hover, highlighting, code actions)
+:JiraEnableLsp
+
+# Highlight Jira issue keys in current buffer
+:JiraHighlightKeys
+```
+
+### ⚡ Performance Optimizations
+
+Benefit from smart caching to speed up the plugin:
+
+```bash
+# View cache statistics
+:JiraCacheStats
+
+# Clear specific cache type
+:JiraCacheClear issues
+
+# Clear all caches
+:JiraCacheClear
+```
+
+### 🛠️ Troubleshooting
+
+Get helpful error messages and troubleshooting guides:
+
+```bash
+# Show troubleshooting guide
+:JiraTroubleshoot
+```
 
 ## 🚀 Usage Examples
 
@@ -550,6 +681,15 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **Floating/Split Windows**: Choose your preferred display mode
 - **Error Handling**: Graceful fallbacks and helpful error messages
 - **Performance**: Async operations, no blocking
+
+## 📚 Documentation Resources
+
+jira-nvim comes with extensive documentation to help you get the most out of the plugin:
+
+- [**Comprehensive Documentation**](./docs/DOCUMENTATION.md) - Detailed feature and usage guide
+- [**API Reference**](./docs/API.md) - Reference for developers extending jira-nvim
+- [**Contributing Guide**](./CONTRIBUTING.md) - How to contribute to jira-nvim
+- [**Changelog**](./CHANGELOG.md) - History of changes and new features
 
 ## 📚 Jira API Integration
 

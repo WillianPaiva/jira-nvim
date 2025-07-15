@@ -8,6 +8,13 @@ local user = require('jira-nvim.user')
 local search = require('jira-nvim.search')
 local api = require('jira-nvim.api')
 local utils = require('jira-nvim.utils')
+local dashboard = require('jira-nvim.dashboard')
+local context = require('jira-nvim.context')
+local git = require('jira-nvim.git')
+local lsp = require('jira-nvim.lsp')
+local cache = require('jira-nvim.cache')
+local errors = require('jira-nvim.errors')
+local form_enhancements = require('jira-nvim.form_enhancements')
 
 -- Check if LazyVim is available for better integration
 local has_lazyvim = pcall(require, "lazyvim.util")
@@ -17,6 +24,20 @@ function M.setup(opts)
   
   -- Initialize user cache
   user.init()
+  
+  -- Setup API caching
+  cache.configure({
+    enabled = config.get('enable_caching') or true,
+    ttl = config.get('cache_ttl') or 300,
+    max_size = config.get('cache_size') or 100
+  })
+  cache.setup(api)
+  
+  -- Setup enhanced error handling
+  errors.setup(api)
+  
+  -- Initialize form enhancements
+  form_enhancements.init()
 
   -- Register Setup command to configure credentials
   vim.api.nvim_create_user_command('JiraSetup', function()
@@ -570,6 +591,147 @@ function M.setup(opts)
   end, {
     desc = 'Show unassigned issues'
   })
+  
+  -- Dashboard commands
+  vim.api.nvim_create_user_command('JiraDashboard', function()
+    dashboard.show_dashboard()
+  end, {
+    desc = 'Show personalized Jira dashboard'
+  })
+  
+  vim.api.nvim_create_user_command('JiraStats', function()
+    dashboard.show_stats()
+  end, {
+    desc = 'Show personal Jira statistics'
+  })
+  
+  -- Context awareness commands
+  vim.api.nvim_create_user_command('JiraContext', function()
+    context.show_context()
+  end, {
+    desc = 'Show Jira context from current branch/file'
+  })
+  
+  vim.api.nvim_create_user_command('JiraCommit', function()
+    context.create_commit_with_issue_key()
+  end, {
+    desc = 'Create git commit with Jira issue key'
+  })
+  
+  vim.api.nvim_create_user_command('JiraCreateBranch', function()
+    context.create_branch_from_issue()
+  end, {
+    desc = 'Create git branch from Jira issue'
+  })
+  
+  -- Issue key under cursor commands
+  vim.api.nvim_create_user_command('JiraViewUnderCursor', function()
+    context.go_to_issue_under_cursor()
+  end, {
+    desc = 'View Jira issue under cursor'
+  })
+  
+  vim.api.nvim_create_user_command('JiraOpenUnderCursor', function()
+    context.open_issue_under_cursor()
+  end, {
+    desc = 'Open Jira issue under cursor in browser'
+  })
+  
+  -- Git workflow integration commands
+  vim.api.nvim_create_user_command('JiraGitCommitHistory', function()
+    git.show_commit_history()
+  end, {
+    desc = 'Show Git commit history with Jira links'
+  })
+  
+  vim.api.nvim_create_user_command('JiraGitBranch', function()
+    git.create_branch_with_prefix()
+  end, {
+    desc = 'Create a git branch from a Jira issue with prefix'
+  })
+  
+  vim.api.nvim_create_user_command('JiraGitLinkCommit', function(args)
+    local parts = vim.split(args.args, ' ', { plain = true })
+    local commit_hash = parts[1] or 'HEAD'
+    local issue_key = parts[2]
+    
+    if not issue_key then
+      vim.fn.inputsave()
+      issue_key = vim.fn.input({
+        prompt = "Enter Jira issue key: "
+      })
+      vim.fn.inputrestore()
+      
+      if issue_key == "" then
+        utils.show_warning("Operation canceled")
+        return
+      end
+    end
+    
+    git.link_commit_to_issue(commit_hash, issue_key)
+  end, {
+    nargs = '*',
+    desc = 'Link a git commit to a Jira issue'
+  })
+  
+  vim.api.nvim_create_user_command('JiraGitUpdateIssue', function()
+    git.update_issue_with_branch()
+  end, {
+    desc = 'Update Jira issue with Git branch info'
+  })
+  
+  vim.api.nvim_create_user_command('JiraGitHooks', function()
+    git.show_git_hooks_help()
+  end, {
+    desc = 'Show Git workflow hooks help'
+  })
+  
+  vim.api.nvim_create_user_command('JiraInstallGitHooks', function()
+    git.install_git_hooks()
+  end, {
+    desc = 'Install Git hooks for Jira workflow'
+  })
+  
+  -- LSP integration commands
+  vim.api.nvim_create_user_command('JiraEnableLsp', function()
+    lsp.setup()
+  end, {
+    desc = 'Enable Jira LSP integration (hover, highlighting, code actions)'
+  })
+  
+  vim.api.nvim_create_user_command('JiraHighlightKeys', function()
+    lsp.highlight_issue_keys(0)
+  end, {
+    desc = 'Highlight Jira issue keys in current buffer'
+  })
+  
+  -- Cache management commands
+  vim.api.nvim_create_user_command('JiraCacheStats', function()
+    cache.show_stats()
+  end, {
+    desc = 'Show Jira API cache statistics'
+  })
+  
+  vim.api.nvim_create_user_command('JiraCacheClear', function(args)
+    local cache_type = args.args ~= "" and args.args or nil
+    cache.clear(cache_type)
+    utils.show_info("Cache" .. (cache_type and " for " .. cache_type or "") .. " cleared")
+  end, {
+    nargs = '?',
+    desc = 'Clear Jira API cache (optional: specify cache type)'
+  })
+  
+  -- Troubleshooting command
+  vim.api.nvim_create_user_command('JiraTroubleshoot', function()
+    errors.show_troubleshooting()
+  end, {
+    desc = 'Show Jira troubleshooting guide'
+  })
+end
+
+-- Setup LSP integration if enabled
+if config.get('enable_lsp_integration') then
+  lsp.setup()
 end
 
 return M
