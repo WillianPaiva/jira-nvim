@@ -11,38 +11,32 @@ local user_cache = {
 }
 
 local function fetch_current_user(callback)
-  if not utils.is_jira_available() then
-    callback('Jira CLI not found')
+  if not utils.is_api_available() then
+    callback('Jira API not configured')
     return
   end
   
-  local jira_cmd = config.get('jira_cmd')
-  local full_cmd = jira_cmd .. ' me'
+  local api = require('jira-nvim.api')
   
-  vim.fn.jobstart({'sh', '-c', full_cmd}, {
-    stdout_buffered = true,
-    stderr_buffered = true,
-    on_stdout = function(_, data)
-      local output = table.concat(data, '\n'):gsub('^%s*(.-)%s*$', '%1')
-      if output and output ~= '' then
-        user_cache.username = output
-        user_cache.loaded = true
-        user_cache.loading = false
-        if callback then callback(nil, output) end
-      end
-    end,
-    on_stderr = function(_, data)
-      local error_msg = table.concat(data, '\n')
+  api.get_current_user(function(err, data)
+    if err then
       user_cache.loading = false
-      if callback then callback(error_msg, nil) end
-    end,
-    on_exit = function(_, code)
-      user_cache.loading = false
-      if code ~= 0 and callback then
-        callback('Failed to get current user (exit code: ' .. code .. ')', nil)
-      end
+      if callback then callback(err, nil) end
+      return
     end
-  })
+    
+    if data and data.displayName then
+      user_cache.username = data.displayName
+      user_cache.email = data.emailAddress
+      user_cache.account_id = data.accountId
+      user_cache.loaded = true
+      user_cache.loading = false
+      if callback then callback(nil, data.displayName) end
+    else
+      user_cache.loading = false
+      if callback then callback('Invalid user data received', nil) end
+    end
+  end)
 end
 
 function M.get_current_user(callback)

@@ -125,7 +125,15 @@ function M.show_output(title, content)
   end
   
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  
+  -- Add a small delay before making the buffer non-modifiable
+  -- This allows plugins like img-clip.nvim to complete paste operations
+  vim.defer_fn(function()
+    -- Check if the buffer still exists before setting options
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+    end
+  end, 100)
   
   local keymaps = config.get('keymaps')
   
@@ -139,7 +147,28 @@ function M.show_output(title, content)
     noremap = true,
     silent = true,
     callback = function()
-      vim.notify('Refresh functionality not implemented yet', vim.log.levels.INFO)
+      -- Extract action info from buffer title
+      local action_type = title:match('^([^:]+):')
+      
+      if action_type == 'Issue' then
+        -- Extract issue key
+        local issue_key = title:match('Issue:%s*([A-Z]+-[0-9]+)')
+        if issue_key then
+          require('jira-nvim.cli').issue_view(issue_key)
+        end
+      elseif action_type == 'Jira Issues' then
+        require('jira-nvim.cli').issue_list()
+      elseif action_type == 'Jira Projects' then
+        require('jira-nvim.cli').project_list()
+      elseif action_type == 'Jira Boards' then
+        require('jira-nvim.cli').board_list()
+      elseif action_type == 'Jira Sprints' then
+        require('jira-nvim.cli').sprint_list()
+      elseif action_type == 'Jira Epics' then
+        require('jira-nvim.cli').epic_list()
+      else
+        utils.show_info('Refreshing not available for this view')
+      end
     end,
     desc = 'Refresh content'
   })
@@ -375,15 +404,18 @@ function M.show_help()
     '========================',
     '',
     'Commands:',
-    '  :JiraIssueList [args]         - List issues',
+    '  :JiraIssueList [jql]         - List issues matching JQL query',
     '  :JiraIssueView <key>          - View issue details',
     '  :JiraIssueCreate [args]       - Create new issue',
     '  :JiraIssueComment <key> [msg] - Add comment to issue',
     '  :JiraIssueComments <key> [n]  - View n recent comments (default: 5)',
     '  :JiraIssueAssign <key> <user> - Assign issue to user',
     '  :JiraIssueWatch <key> [user]  - Add watcher to issue (default: me)',
-    '  :JiraSprintList [args]        - List sprints',
-    '  :JiraEpicList [args]          - List epics',
+    '  :JiraSprintList [board_id]    - List sprints',
+    '  :JiraEpicList [board_id]      - List epics',
+    '  :JiraProjectList              - Browse projects (with fuzzy search)',
+    '  :JiraBoardList [project_key]   - Browse boards (with fuzzy search)',
+    '  :JiraProjectBoards             - List boards for default project',
     '  :JiraOpen [key]               - Open in browser',
     '  :JiraSearch                   - Fuzzy search issues (requires telescope)',
     '  :JiraHistory                  - Show recently viewed issues',
@@ -391,10 +423,16 @@ function M.show_help()
     '  :JiraBookmark <key> [desc]    - Toggle bookmark for issue',
     '  :JiraJQL                      - Search with JQL query',
     '  :JiraMyIssues                 - Show my assigned issues',
+    '  :JiraRecentIssues             - Show recently created issues',
+    '  :JiraHighPriorityIssues       - Show high priority issues',
+    '  :JiraUnassignedIssues         - Show unassigned issues',
+    '  :JiraCurrentSprint            - Show issues from current active sprint',
+    '  :JiraShowBoards                - Show board IDs for default project',
+    '  :JiraSetDefaultBoard <id>       - Set default board ID for sprints',
     '',
     'Keymaps (in Jira windows):',
     '  q         - Close window',
-    '  <C-r>     - Refresh (not implemented)',
+    '  <C-r>     - Refresh current view',
     '  <CR>      - Open issue in browser',
     '  v         - View issue details',
     '  t         - Transition issue state (shows available options)',
@@ -408,9 +446,10 @@ function M.show_help()
     '  /         - Fuzzy search issues (requires telescope)',
     '',
     'Examples:',
-    '  :JiraIssueList -a"your-username" -s"To Do"',
+    '  :JiraIssueList "assignee = currentUser() AND status = \"To Do\""',
+    '  :JiraIssueList "project = PROJ AND sprint in openSprints()"',
     '  :JiraIssueView PROJ-123',
-    '  :JiraIssueCreate -tBug -s"Bug title"',
+    '  :JiraIssueCreate',
     '  :JiraIssueComment PROJ-123 "This is a comment"',
     '  :JiraIssueComments PROJ-123 10',
     '  :JiraIssueAssign PROJ-123 me',
@@ -418,7 +457,22 @@ function M.show_help()
     '  :JiraIssueWatch PROJ-123',
     '  :JiraBookmark PROJ-123 "Important bug to track"',
     '  :JiraSearch  # Opens telescope fuzzy search',
-    '  :JiraMyIssues  # Shows issues assigned to me'
+    '  :JiraMyIssues  # Shows issues assigned to me',
+    '  :JiraRecentIssues  # Shows issues created in the last 7 days',
+    '  :JiraHighPriorityIssues  # Shows high priority issues',
+    '  :JiraUnassignedIssues  # Shows issues with no assignee',
+    '  :JiraCurrentSprint  # Shows issues in the current sprint',
+    '  :JiraSetDefaultBoard 123  # Sets board ID 123 as the default board',
+    '  :JiraBoardList PROJ  # Lists all boards for project PROJ',
+    '  :JiraProjectBoards  # Lists boards for the default project',
+    '  :JiraShowBoards  # Shows board IDs for the default project',
+    '',
+    'Configuration:',
+    '  Create credentials in ' .. vim.fn.stdpath('config') .. '/jira-nvim/auth.json',
+    '  or run :JiraSetup to configure interactively',
+    '',
+    'For more information and documentation, see:',
+    '  https://github.com/WillianPaiva/jira-nvim-plugin'
   }
   
   M.show_output('Jira Help', table.concat(help_text, '\n'))

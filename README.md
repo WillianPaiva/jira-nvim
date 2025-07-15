@@ -1,6 +1,6 @@
 # jira-nvim
 
-A comprehensive Neovim plugin that integrates with [jira-cli](https://github.com/ankitpokhrel/jira-cli) to manage Jira from within Neovim using intuitive forms and quick commands.
+A comprehensive Neovim plugin that integrates directly with the Jira REST API to manage Jira from within Neovim using intuitive forms and quick commands.
 
 ![Neovim](https://img.shields.io/badge/Neovim-0.7+-green.svg)
 ![Lua](https://img.shields.io/badge/Lua-5.1+-blue.svg)
@@ -20,8 +20,8 @@ A comprehensive Neovim plugin that integrates with [jira-cli](https://github.com
 ## 📋 Prerequisites
 
 - **Neovim 0.7+**
-- **[jira-cli](https://github.com/ankitpokhrel/jira-cli)** installed and configured
-- **Properly configured Jira credentials** (see jira-cli documentation)
+- **[plenary.nvim](https://github.com/nvim-lua/plenary.nvim)** for HTTP requests
+- **Jira account with API token** (obtain from [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens))
 
 ## 📦 Installation
 
@@ -38,11 +38,13 @@ return {
       "nvim-lua/plenary.nvim", -- For future async operations
     },
     opts = {
-      jira_cmd = "jira", -- Ensure jira-cli is in your PATH
+      jira_url = "https://your-domain.atlassian.net", -- Your Jira instance URL
+      jira_email = "your.email@example.com",         -- Your Jira email
+      jira_api_token = "your-api-token",             -- Your Jira API token
+      project_key = "PROJ",                         -- Default project key (optional)
       use_floating_window = true,
       window_width = 0.8,
       window_height = 0.8,
-      default_project = nil,
       keymaps = {
         close = "q",
         refresh = "<C-r>",
@@ -176,24 +178,57 @@ require('jira-nvim').setup()
 
 ## ⚙️ Configuration
 
-### Default Configuration
+### Project-Focused Configuration
+
+The recommended setup focuses on working with a single project and board, which is the most common use case:
 
 ```lua
 require('jira-nvim').setup({
-  jira_cmd = 'jira',                    -- Jira CLI command
-  use_floating_window = true,           -- Use floating windows
-  window_width = 0.8,                   -- Floating window width ratio
-  window_height = 0.8,                  -- Floating window height ratio
-  default_project = nil,                -- Default project key
+  -- API Connection Settings
+  jira_url = 'https://your-domain.atlassian.net',  -- Your Jira instance URL
+  jira_email = 'your.email@example.com',          -- Your Jira email
+  jira_api_token = 'your-api-token',              -- Your Jira API token
+  auth_type = 'basic',                            -- 'basic' (cloud) or 'bearer' (server)
+  
+  -- Project Settings
+  project_key = 'PROJ',                           -- Your default project key
+  default_board = '1234',                         -- Your default board ID
+  
+  -- UI Settings
+  use_floating_window = true,                     -- Use floating windows
+  window_width = 0.8,                             -- Floating window width ratio
+  window_height = 0.8,                            -- Floating window height ratio
+  
+  -- Keymaps
   keymaps = {
-    close = 'q',                        -- Close window
-    refresh = '<C-r>',                  -- Refresh content
-    open_browser = '<CR>',              -- Open issue in browser
-    view_issue = 'v',                   -- View issue details
-    transition_issue = 't'              -- Transition issue state
+    close = 'q',                                  -- Close window
+    refresh = '<C-r>',                            -- Refresh content
+    open_browser = '<CR>',                        -- Open issue in browser
+    view_issue = 'v',                             -- View issue details
+    transition_issue = 't',                       -- Transition issue state
+    comment_issue = 'c',                          -- Add comment to issue
+    view_comments = 'C',                          -- View issue comments
+    assign_issue = 'a',                           -- Assign issue
+    watch_issue = 'w',                            -- Add watcher to issue
+    toggle_bookmark = 'b',                        -- Toggle bookmark
+    show_history = 'h',                           -- Show history
+    show_bookmarks = 'B',                         -- Show bookmarks
+    fuzzy_search = '/'                            -- Fuzzy search
   }
 })
 ```
+
+### Finding Your Board ID
+
+To find your board ID (needed for sprint features):
+
+1. Run `:JiraSetup` and follow the prompts to set up your credentials and project
+2. Run `:JiraShowBoards` to see boards for your project with their IDs
+3. Set your default board with `:JiraSetDefaultBoard <id>`
+
+Alternatively, add `default_board = "1234"` directly to your configuration.
+
+**Note**: You can also run `:JiraSetup` to configure your credentials interactively. Credentials are securely stored in `~/.config/nvim/jira-nvim/auth.json`.
 
 ## 🎯 Commands
 
@@ -222,39 +257,91 @@ require('jira-nvim').setup({
 | `:JiraOpen [key]` | Open in browser | `:JiraOpen PROJ-123` |
 | `:JiraHelp` | Show plugin help | `:JiraHelp` |
 
-## ⌨️ Default Keymaps (LazyVim)
+## ⌨️ Recommended Keybindings
 
-### Issue Management
-- `<leader>ji` - **List Issues (Filter Form)** - Opens advanced filtering form
-- `<leader>jI` - **My Issues** - Issues assigned to me
-- `<leader>jT` - **My TODO Issues** - My issues with "To Do" status
-- `<leader>jP` - **My In Progress** - My issues currently in progress
-- `<leader>jr` - **Recent Issues** - Issues created in last 7 days
-- `<leader>ju` - **Unassigned Issues** - Issues with no assignee
-- `<leader>jh` - **High Priority Issues** - High priority issues only
-- `<leader>jv` - **View Issue** - View specific issue (with smart word detection)
-- `<leader>jc` - **Create Issue (Form)** - Create issue using interactive form
-- `<leader>jt` - **Transition Issue** - Change issue status with available state options
+### Daily Workflow (LazyVim)
 
-### Sprint & Epic Management
-- `<leader>js` - **List Sprints**
-- `<leader>jS` - **Current Sprint**
-- `<leader>je` - **List Epics**
-
-### Project & Board Management
-- `<leader>jp` - **List Projects**
-- `<leader>jb` - **List Boards**
-
-### Quick Actions
-- `<leader>jo` - **Open in Browser** (smart detection of issue keys)
-- `<leader>j?` - **Show Help**
+```lua
+keys = {
+  -- Issue views based on status
+  { "<leader>jm", function() require("jira-nvim.search").show_my_issues() end, desc = "My Issues" },
+  { "<leader>jt", function() require("jira-nvim.form").my_todo_issues() end, desc = "My TODO Issues" },
+  { "<leader>jp", function() require("jira-nvim.form").my_in_progress_issues() end, desc = "My In Progress" },
+  { "<leader>ju", function() require("jira-nvim.search").show_unassigned_issues() end, desc = "Unassigned Issues" },
+  { "<leader>jh", function() require("jira-nvim.search").show_high_priority_issues() end, desc = "High Priority Issues" },
+  
+  -- Sprint & Epic
+  { "<leader>js", "<cmd>JiraCurrentSprint<cr>", desc = "Current Sprint" },
+  { "<leader>je", "<cmd>JiraEpicList<cr>", desc = "List Epics" },
+  
+  -- Issue management
+  { "<leader>jc", "<cmd>JiraIssueCreate<cr>", desc = "Create Issue" },
+  { "<leader>jv", function() 
+      vim.ui.input({
+        prompt = "Issue Key: ",
+        default = vim.fn.expand("<cword>")
+      }, function(input)
+        if input and input ~= "" then
+          vim.cmd("JiraIssueView " .. input)
+        end
+      end)
+    end, desc = "View Issue"
+  },
+  
+  -- Issue transitions
+  { "<leader>jx", function() 
+      vim.ui.input({
+        prompt = "Issue Key: ",
+        default = vim.fn.expand("<cword>")
+      }, function(issue_key)
+        if issue_key and issue_key ~= "" then
+          require('jira-nvim.cli').get_available_transitions(issue_key, function(err, states)
+            if states then
+              vim.ui.select(states, {
+                prompt = 'Select new state for ' .. issue_key .. ':',
+              }, function(choice)
+                if choice then
+                  require('jira-nvim.cli').issue_transition(issue_key, choice)
+                end
+              end)
+            end
+          end)
+        end
+      end)
+    end, desc = "Transition Issue"
+  },
+  
+  -- Quick actions
+  { "<leader>jo", function()
+      local word = vim.fn.expand("<cword>")
+      if word:match("^[A-Z]+-[0-9]+$") then
+        vim.cmd("JiraOpen " .. word)
+      else
+        vim.cmd("JiraOpen")
+      end
+    end, desc = "Open in Browser"
+  },
+  
+  -- History & help
+  { "<leader>jh", "<cmd>JiraHistory<cr>", desc = "Show History" },
+  { "<leader>j?", "<cmd>JiraHelp<cr>", desc = "Show Help" },
+},
+```
 
 ### In Jira Windows
+These keymaps work when viewing Jira content in Neovim:
+
 - `q` - Close window
-- `<C-r>` - Refresh content (planned)
+- `<C-r>` - Refresh current view
 - `<CR>` - Open issue under cursor in browser
 - `v` - View details of issue under cursor
-- `t` - Transition current issue state (shows available state options)
+- `t` - Transition issue state (shows available options)
+- `c` - Add comment to issue
+- `C` - View recent comments
+- `a` - Assign issue to user
+- `b` - Toggle bookmark for issue
+- `h` - Show issue history
+- `B` - Show bookmarks
 
 ## 🔄 Issue Transitions
 
@@ -375,18 +462,17 @@ Advanced filtering form with:
 
 ## 🔧 Troubleshooting
 
-### Jira CLI not found
-```bash
-# Verify jira-cli is installed and in PATH
-which jira
-jira version
-```
-
 ### Authentication issues
-```bash
-# Configure Jira credentials
-jira init
-```
+- Verify your Jira URL is correct (should be like `https://your-domain.atlassian.net`)
+- Check that your email matches the one registered with Atlassian
+- Ensure your API token is valid and not expired
+- Run `:JiraSetup` to reconfigure credentials interactively
+
+### API errors
+- "API Error: 401" - Authentication failed, check your credentials
+- "API Error: 403" - Permission denied, check your Jira permissions
+- "API Error: 404" - Resource not found, check issue keys and project keys
+- "API Error: 400" - Bad request, check your input parameters
 
 ### Permission errors
 Check that your Jira user has appropriate permissions for the operations you're trying to perform.
@@ -394,7 +480,7 @@ Check that your Jira user has appropriate permissions for the operations you're 
 ### Form submission issues
 - Ensure you're using `<leader>js` or `<C-s>` in insert mode to submit forms
 - Check that required fields (Type and Summary for issue creation) are filled
-- Verify jira-cli is working: `jira issue list` in terminal
+- For connection issues, check your network connectivity to the Jira instance
 
 ## 🛠️ Development
 
@@ -433,8 +519,9 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- **[jira-cli](https://github.com/ankitpokhrel/jira-cli)** - The excellent CLI tool this plugin wraps
+- **[plenary.nvim](https://github.com/nvim-lua/plenary.nvim)** - For the curl HTTP library
 - **[LazyVim](https://github.com/LazyVim/LazyVim)** - Amazing Neovim configuration framework
+- **[Jira REST API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/)** - Comprehensive API documentation
 - **Neovim community** - For the fantastic plugin ecosystem
 
 ## 📋 Complete Feature Summary
@@ -464,11 +551,17 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **Error Handling**: Graceful fallbacks and helpful error messages
 - **Performance**: Async operations, no blocking
 
-## 📚 Integration with jira-cli
+## 📚 Jira API Integration
 
-This plugin is a comprehensive wrapper around [jira-cli](https://github.com/ankitpokhrel/jira-cli). All the filtering and querying capabilities of jira-cli are available through intuitive forms and commands.
+This plugin communicates directly with the Jira REST API. It supports all major Jira operations including:
 
-For detailed information about available flags and options, refer to the [jira-cli documentation](https://github.com/ankitpokhrel/jira-cli).
+- Issue creation, viewing, and updating
+- Issue transitions and workflows
+- Comments and watchers
+- Project, board, sprint, and epic management
+- JQL (Jira Query Language) search with full syntax support
+
+The plugin requires a Jira API token, which you can create at [https://id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
 
 ---
 

@@ -26,12 +26,17 @@ local function create_issue_form()
     title_pos = 'center'
   })
   
+  -- Get default project if available
+  local default_project = config.get('project_key') or config.get('default_project') or ''
+  local project_line = default_project ~= '' and "Project: " .. default_project or "Project: "
+  
   local template = {
     "# Jira Issue Creation Form",
     "# Fill out the details below and press <leader>js to submit",
     "# Press 'q' to cancel",
     "",
     "## Required Fields",
+    project_line,
     "Type: Bug",
     "Summary: ",
     "",
@@ -453,7 +458,16 @@ end
 function M.my_issues()
   local username = user.get_cached_user()
   if username then
-    cli.issue_list('-a"' .. username .. '"')
+    -- Get default project if available
+    local default_project = config.get('project_key') or config.get('default_project')
+    
+    if default_project and default_project ~= '' then
+      -- Filter by both assignee and project
+      cli.issue_list('-a"' .. username .. '" -p"' .. default_project .. '"')
+    else
+      -- Just filter by assignee if no default project
+      cli.issue_list('-a"' .. username .. '"')
+    end
   else
     utils.show_warning('User not yet loaded. Please wait and try again.')
   end
@@ -462,7 +476,16 @@ end
 function M.my_todo_issues()
   local username = user.get_cached_user()
   if username then
-    cli.issue_list('-a"' .. username .. '" -s"To Do"')
+    -- Get default project if available
+    local default_project = config.get('project_key') or config.get('default_project')
+    
+    if default_project and default_project ~= '' then
+      -- Filter by assignee, status, and project
+      cli.issue_list('-a"' .. username .. '" -s"To Do" -p"' .. default_project .. '"')
+    else
+      -- Just filter by assignee and status
+      cli.issue_list('-a"' .. username .. '" -s"To Do"')
+    end
   else
     utils.show_warning('User not yet loaded. Please wait and try again.')
   end
@@ -471,22 +494,58 @@ end
 function M.my_in_progress_issues()
   local username = user.get_cached_user()
   if username then
-    cli.issue_list('-a"' .. username .. '" -s"In Progress"')
+    -- Get default project if available
+    local default_project = config.get('project_key') or config.get('default_project')
+    
+    if default_project and default_project ~= '' then
+      -- Filter by assignee, status, and project
+      cli.issue_list('-a"' .. username .. '" -s"In Progress" -p"' .. default_project .. '"')
+    else
+      -- Just filter by assignee and status
+      cli.issue_list('-a"' .. username .. '" -s"In Progress"')
+    end
   else
     utils.show_warning('User not yet loaded. Please wait and try again.')
   end
 end
 
 function M.recent_issues()
-  cli.issue_list('--created -7d')
+  -- Get default project if available
+  local default_project = config.get('project_key') or config.get('default_project')
+  
+  if default_project and default_project ~= '' then
+    -- Filter by creation date and project
+    cli.issue_list('--created -7d -p"' .. default_project .. '"')
+  else
+    -- Just filter by creation date
+    cli.issue_list('--created -7d')
+  end
 end
 
 function M.unassigned_issues()
-  cli.issue_list('-ax')
+  -- Get default project if available
+  local default_project = config.get('project_key') or config.get('default_project')
+  
+  if default_project and default_project ~= '' then
+    -- Use JQL directly for unassigned issues with project filter
+    cli.issue_list('-q"assignee IS EMPTY AND project = \'' .. default_project .. '\'"')
+  else
+    -- Use JQL for all unassigned issues
+    cli.issue_list('-q"assignee IS EMPTY"')
+  end
 end
 
 function M.high_priority_issues()
-  cli.issue_list('-yHigh')
+  -- Get default project if available
+  local default_project = config.get('project_key') or config.get('default_project')
+  
+  if default_project and default_project ~= '' then
+    -- Filter by priority and project
+    cli.issue_list('-y"High" -p"' .. default_project .. '"')
+  else
+    -- Just filter by priority
+    cli.issue_list('-y"High"')
+  end
 end
 
 return M
