@@ -21,9 +21,11 @@ jobs:
       - name: Setup Luarocks
         uses: leafo/gh-actions-luarocks@v4
         
-      - name: Install stylua
-        run: |
-          cargo install stylua
+      - name: Setup stylua
+        uses: JohnnyMorganz/stylua-action@v3
+        with:
+          version: latest
+          token: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Check Lua formatting
         run: |
@@ -44,6 +46,10 @@ jobs:
         with:
           neovim-version: ${{ matrix.neovim_version }}
           
+      - name: Install plenary dependency
+        run: |
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
+          
       - name: Basic Plugin Load Test
         run: |
-          nvim --headless -c "lua require('jira-nvim')" -c "qa"
+          nvim --headless -c "lua require('jira-nvim')" -c "qa!"

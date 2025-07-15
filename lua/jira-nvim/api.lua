@@ -9,7 +9,7 @@ local auth = {
   email = nil,
   api_token = nil,
   auth_header = nil,
-  auth_type = 'basic'  -- 'basic' or 'bearer'
+  auth_type = 'basic', -- 'basic' or 'bearer'
 }
 
 -- Base API URL paths
@@ -17,7 +17,7 @@ local api_paths = {
   v3 = '/rest/api/3',
   v2 = '/rest/api/2',
   agile = '/rest/agile/1.0',
-  agile_alternative = '/rest/agile/latest'  -- Fallback for some server instances
+  agile_alternative = '/rest/agile/latest', -- Fallback for some server instances
 }
 
 -- Initialize API connection
@@ -31,12 +31,12 @@ function M.setup()
     utils.show_error('Jira URL missing. Please set jira_url in your config.')
     return false
   end
-  
+
   if auth_type == 'basic' and (not email or not api_token) then
     utils.show_error('Basic authentication requires both email and API token.')
     return false
   end
-  
+
   if auth_type == 'bearer' and not api_token then
     utils.show_error('Bearer authentication requires an API token.')
     return false
@@ -47,26 +47,26 @@ function M.setup()
   auth.email = email
   auth.api_token = api_token
   auth.auth_type = auth_type
-  
+
   -- Create authentication header based on auth type
   if auth_type == 'bearer' then
     auth.auth_header = 'Bearer ' .. api_token
-  else 
+  else
     -- Basic auth (default)
     local auth_string = email .. ':' .. api_token
     auth.auth_header = 'Basic ' .. vim.fn.system('echo -n "' .. auth_string .. '" | base64 | tr -d "\n"')
   end
-  
+
   -- Detect Jira server type (cloud vs. server)
   if base_url:match('atlassian.net') then
     auth.server_type = 'cloud'
   else
     auth.server_type = 'server'
   end
-  
+
   -- Adjust API paths based on server type
   if auth.server_type == 'server' then
-    api_paths.v3 = api_paths.v2  -- Fallback to v2 for server instances
+    api_paths.v3 = api_paths.v2 -- Fallback to v2 for server instances
   end
 
   return true
@@ -79,7 +79,7 @@ function M.get_browse_url(issue_key)
       return nil
     end
   end
-  
+
   return auth.base_url .. '/browse/' .. issue_key
 end
 
@@ -94,7 +94,7 @@ function M.request(method, endpoint, api_version, data, callback)
   -- Default to API v3 if not specified
   api_version = api_version or 'v3'
   local base_path = api_paths.v3
-  
+
   if api_version == 'v2' then
     base_path = api_paths.v2
   elseif api_version == 'agile' then
@@ -108,12 +108,12 @@ function M.request(method, endpoint, api_version, data, callback)
   local headers = {
     ['Authorization'] = auth.auth_header,
     ['Content-Type'] = 'application/json',
-    ['Accept'] = 'application/json'
+    ['Accept'] = 'application/json',
   }
 
   local opts = {
     headers = headers,
-    timeout = 10000
+    timeout = 10000,
   }
 
   if data then
@@ -145,14 +145,14 @@ function M.request(method, endpoint, api_version, data, callback)
         err_msg = err_msg .. ' - ' .. response.body
       end
     end
-    
+
     -- Special handling for specific error codes
     if response.status == 404 and method == 'GET' and api_version == 'v3' then
       -- Try falling back to v2 API for older Jira instances
       M.request(method, endpoint, 'v2', data, callback)
       return
     end
-    
+
     callback(err_msg, nil)
   else
     local result = nil
@@ -183,14 +183,16 @@ end
 
 -- URL encode a string (simpler version focused on Jira JQL needs)
 function M.url_encode(str)
-  if not str then return "" end
-  local s = str:gsub(" ", "%%20")
-  s = s:gsub("=", "%%3D")
-  s = s:gsub("\"", "%%22")
-  s = s:gsub("&", "%%26")
-  s = s:gsub("%+", "%%2B")
-  s = s:gsub("<", "%%3C")
-  s = s:gsub(">", "%%3E")
+  if not str then
+    return ''
+  end
+  local s = str:gsub(' ', '%%20')
+  s = s:gsub('=', '%%3D')
+  s = s:gsub('"', '%%22')
+  s = s:gsub('&', '%%26')
+  s = s:gsub('%+', '%%2B')
+  s = s:gsub('<', '%%3C')
+  s = s:gsub('>', '%%3E')
   return s
 end
 
@@ -198,12 +200,12 @@ end
 function M.format_jql(jql_parts, combine)
   local formatted = {}
   combine = combine or 'AND'
-  
+
   for _, part in ipairs(jql_parts) do
     local field = part[1]
     local operator = part[2]
     local value = part[3]
-    
+
     -- Handle special operators like IS EMPTY, IS NOT EMPTY
     if operator == 'IS EMPTY' or operator == 'IS NOT EMPTY' then
       table.insert(formatted, field .. ' ' .. operator)
@@ -238,7 +240,7 @@ function M.format_jql(jql_parts, combine)
       end
     end
   end
-  
+
   return table.concat(formatted, ' ' .. combine .. ' ')
 end
 
@@ -258,10 +260,10 @@ function M.create_issue(project_key, issue_type, summary, description, additiona
     fields = {
       project = { key = project_key },
       issuetype = { name = issue_type },
-      summary = summary
-    }
+      summary = summary,
+    },
   }
-  
+
   -- Add description if provided
   if description then
     data.fields.description = {
@@ -273,21 +275,21 @@ function M.create_issue(project_key, issue_type, summary, description, additiona
           content = {
             {
               type = 'text',
-              text = description
-            }
-          }
-        }
-      }
+              text = description,
+            },
+          },
+        },
+      },
     }
   end
-  
+
   -- Add any additional fields
   if additional_fields then
     for k, v in pairs(additional_fields) do
       data.fields[k] = v
     end
   end
-  
+
   M.request('POST', '/issue', 'v3', data, callback)
 end
 
@@ -299,13 +301,13 @@ end
 -- Transition issue
 function M.transition_issue(issue_key, transition_id, fields, comment, callback)
   local data = {
-    transition = { id = transition_id }
+    transition = { id = transition_id },
   }
-  
+
   if fields then
     data.fields = fields
   end
-  
+
   if comment then
     data.update = {
       comment = {
@@ -320,18 +322,18 @@ function M.transition_issue(issue_key, transition_id, fields, comment, callback)
                   content = {
                     {
                       type = 'text',
-                      text = comment
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                      text = comment,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     }
   end
-  
+
   M.request('POST', '/issue/' .. issue_key .. '/transitions', 'v3', data, callback)
 end
 
@@ -347,14 +349,14 @@ function M.add_comment(issue_key, comment, callback)
           content = {
             {
               type = 'text',
-              text = comment
-            }
-          }
-        }
-      }
-    }
+              text = comment,
+            },
+          },
+        },
+      },
+    },
   }
-  
+
   M.request('POST', '/issue/' .. issue_key .. '/comment', 'v3', data, callback)
 end
 
@@ -368,7 +370,7 @@ end
 -- Assign issue to user
 function M.assign_issue(issue_key, account_id, callback)
   local data = {}
-  
+
   -- If account_id is 'none', set to null for API (unassign)
   -- If account_id is nil or empty, assign to default
   if account_id == 'none' then
@@ -376,7 +378,7 @@ function M.assign_issue(issue_key, account_id, callback)
   elseif account_id and account_id ~= '' then
     data.accountId = account_id
   end
-  
+
   M.request('PUT', '/issue/' .. issue_key .. '/assignee', 'v3', data, callback)
 end
 
@@ -421,14 +423,14 @@ function M.get_boards(callback)
         local headers = {
           ['Authorization'] = auth.auth_header,
           ['Content-Type'] = 'application/json',
-          ['Accept'] = 'application/json'
+          ['Accept'] = 'application/json',
         }
-        
+
         local response = curl.get(url, {
           headers = headers,
-          timeout = 10000
+          timeout = 10000,
         })
-        
+
         if response.status >= 400 then
           callback('API Error: ' .. response.status .. ' - Could not retrieve boards', nil)
         else
@@ -459,7 +461,7 @@ end
 -- Get boards for a specific project
 function M.get_project_boards(project_key, callback)
   local params = '?projectKeyOrId=' .. project_key
-  
+
   -- First try with the standard agile endpoint
   M.request('GET', '/board' .. params, 'agile', nil, function(err, data)
     if err then
@@ -470,14 +472,14 @@ function M.get_project_boards(project_key, callback)
         local headers = {
           ['Authorization'] = auth.auth_header,
           ['Content-Type'] = 'application/json',
-          ['Accept'] = 'application/json'
+          ['Accept'] = 'application/json',
         }
-        
+
         local response = curl.get(url, {
           headers = headers,
-          timeout = 10000
+          timeout = 10000,
         })
-        
+
         if response.status >= 400 then
           callback('API Error: ' .. response.status .. ' - Could not retrieve project boards', nil)
         else
@@ -516,14 +518,14 @@ function M.get_sprints(board_id, callback)
         local headers = {
           ['Authorization'] = auth.auth_header,
           ['Content-Type'] = 'application/json',
-          ['Accept'] = 'application/json'
+          ['Accept'] = 'application/json',
         }
-        
+
         local response = curl.get(url, {
           headers = headers,
-          timeout = 10000
+          timeout = 10000,
         })
-        
+
         if response.status >= 400 then
           callback('API Error: ' .. response.status .. ' - Could not retrieve sprints', nil)
         else
@@ -550,18 +552,22 @@ function M.get_active_sprint(board_id, callback)
       -- If that fails, try with the alternative endpoint
       if err:match('API Error: 404') then
         -- Use alternative agile path
-        local url = auth.base_url:gsub('/$', '') .. api_paths.agile_alternative .. '/board/' .. board_id .. '/sprint?state=active'
+        local url = auth.base_url:gsub('/$', '')
+          .. api_paths.agile_alternative
+          .. '/board/'
+          .. board_id
+          .. '/sprint?state=active'
         local headers = {
           ['Authorization'] = auth.auth_header,
           ['Content-Type'] = 'application/json',
-          ['Accept'] = 'application/json'
+          ['Accept'] = 'application/json',
         }
-        
+
         local response = curl.get(url, {
           headers = headers,
-          timeout = 10000
+          timeout = 10000,
         })
-        
+
         if response.status >= 400 then
           callback('API Error: ' .. response.status .. ' - Could not retrieve active sprint', nil)
         else
@@ -592,14 +598,14 @@ function M.get_epics(board_id, callback)
         local headers = {
           ['Authorization'] = auth.auth_header,
           ['Content-Type'] = 'application/json',
-          ['Accept'] = 'application/json'
+          ['Accept'] = 'application/json',
         }
-        
+
         local response = curl.get(url, {
           headers = headers,
-          timeout = 10000
+          timeout = 10000,
         })
-        
+
         if response.status >= 400 then
           callback('API Error: ' .. response.status .. ' - Could not retrieve epics', nil)
         else
@@ -635,13 +641,13 @@ end
 -- Get issue metadata (for field information when creating issues)
 function M.get_create_meta(project_key, issue_type_id, callback)
   local params = '?projectKeys=' .. project_key
-  
+
   if issue_type_id then
     params = params .. '&issuetypeIds=' .. issue_type_id
   end
-  
+
   params = params .. '&expand=projects.issuetypes.fields'
-  
+
   M.request('GET', '/issue/createmeta' .. params, 'v3', nil, callback)
 end
 
@@ -654,40 +660,40 @@ end
 -- Format API responses for display
 function M.format_issue_for_display(issue)
   local result = {}
-  
+
   -- Basic info
   table.insert(result, '🎫 ' .. issue.key .. ' - ' .. issue.fields.summary)
   table.insert(result, '')
-  
+
   -- Status and type
   table.insert(result, '📊 Type: ' .. issue.fields.issuetype.name)
   table.insert(result, '📊 Status: ' .. issue.fields.status.name)
   table.insert(result, '📊 Priority: ' .. issue.fields.priority.name)
-  
+
   -- People
   if issue.fields.assignee and type(issue.fields.assignee) == 'table' and issue.fields.assignee.displayName then
     table.insert(result, '👤 Assignee: ' .. issue.fields.assignee.displayName)
   else
     table.insert(result, '👤 Assignee: Unassigned')
   end
-  
+
   -- Reporter (might also be missing or formatted differently)
   if issue.fields.reporter and type(issue.fields.reporter) == 'table' and issue.fields.reporter.displayName then
     table.insert(result, '👤 Reporter: ' .. issue.fields.reporter.displayName)
   else
     table.insert(result, '👤 Reporter: Unknown')
   end
-  
+
   -- Dates
   table.insert(result, '📅 Created: ' .. issue.fields.created:sub(1, 10))
   if issue.fields.updated then
     table.insert(result, '📅 Updated: ' .. issue.fields.updated:sub(1, 10))
   end
-  
+
   -- Description
   table.insert(result, '')
   table.insert(result, '📝 Description:')
-  
+
   if issue.renderedFields and issue.renderedFields.description then
     -- Add the rendered HTML description
     local description_lines = vim.split(issue.renderedFields.description, '\n')
@@ -715,16 +721,16 @@ function M.format_issue_for_display(issue)
   else
     table.insert(result, '  No description provided')
   end
-  
+
   -- Comments if available
   if issue.fields.comment and issue.fields.comment.comments and #issue.fields.comment.comments > 0 then
     table.insert(result, '')
-    table.insert(result, '💬 Comments (' .. issue.fields.comment.total .. '):') 
-    
+    table.insert(result, '💬 Comments (' .. issue.fields.comment.total .. '):')
+
     for i, comment in ipairs(issue.fields.comment.comments) do
       table.insert(result, '')
       table.insert(result, '  ➤ ' .. comment.author.displayName .. ' - ' .. comment.created:sub(1, 10))
-      
+
       -- Try to handle ADF document format
       if type(comment.body) == 'table' and comment.body.content then
         for _, content in ipairs(comment.body.content) do
@@ -742,18 +748,18 @@ function M.format_issue_for_display(issue)
       end
     end
   end
-  
+
   return table.concat(result, '\n')
 end
 
 -- Format search results for display
 function M.format_search_results(search_results)
   local result = {}
-  
+
   table.insert(result, 'Found ' .. search_results.total .. ' issues')
   table.insert(result, string.rep('-', 40))
   table.insert(result, '')
-  
+
   for _, issue in ipairs(search_results.issues) do
     local status_icon = '⏳'
     if issue.fields.status.name:match('In Progress') then
@@ -763,7 +769,7 @@ function M.format_search_results(search_results)
     elseif issue.fields.status.name:match('Closed') or issue.fields.status.name:match('Resolved') then
       status_icon = '🔒'
     end
-    
+
     local type_icon = '📋'
     if issue.fields.issuetype.name:match('Bug') then
       type_icon = '🐛'
@@ -774,12 +780,16 @@ function M.format_search_results(search_results)
     elseif issue.fields.issuetype.name:match('Sub') then
       type_icon = '📝'
     end
-    
-    local line = string.format('%s %s | %s %s | %s',
-      type_icon, issue.fields.issuetype.name,
-      status_icon, issue.fields.status.name,
-      issue.key)
-    
+
+    local line = string.format(
+      '%s %s | %s %s | %s',
+      type_icon,
+      issue.fields.issuetype.name,
+      status_icon,
+      issue.fields.status.name,
+      issue.key
+    )
+
     if issue.fields.assignee then
       -- Check if assignee is a table with displayName
       if type(issue.fields.assignee) == 'table' and issue.fields.assignee.displayName then
@@ -791,12 +801,12 @@ function M.format_search_results(search_results)
     else
       line = line .. ' | 👤 Unassigned'
     end
-    
+
     line = line .. ' | ' .. issue.fields.summary
-    
+
     table.insert(result, line)
   end
-  
+
   return table.concat(result, '\n')
 end
 

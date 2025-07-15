@@ -60,7 +60,9 @@
       "Bash(git commit -m \"Fix non-blocking search implementation and resolve syntax errors\")",
       "Bash(git push origin main)",
       "Bash(git add README.md lua/jira-nvim/cli.lua lua/jira-nvim/config.lua lua/jira-nvim/form.lua lua/jira-nvim/init.lua lua/jira-nvim/ui.lua lua/jira-nvim/user.lua lua/jira-nvim/utils.lua lua/jira-nvim/api.lua)",
-      "Bash(git commit -m \"Replace jira-cli with direct Jira API integration\")"
+      "Bash(git commit -m \"Replace jira-cli with direct Jira API integration\")",
+      "Bash(git commit -m \"feat: comprehensive plugin enhancement\n\n- Added dashboard and context awareness features\n- Added git workflow integration \n- Enhanced form interface with markdown preview and templates\n- Added LSP integration for Jira issues in code\n- Optimized performance with smart caching\n- Improved error handling with helpful messages\n- Created extensive documentation\")",
+      "Bash(stylua --check lua/)"
     ],
     "deny": []
   }

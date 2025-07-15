@@ -9,16 +9,16 @@ local devicons = has_devicons and require('nvim-web-devicons') or nil
 function M.create_floating_window(title, content)
   local width = math.floor(vim.o.columns * config.get('window_width'))
   local height = math.floor(vim.o.lines * config.get('window_height'))
-  
+
   local col = math.floor((vim.o.columns - width) / 2)
   local row = math.floor((vim.o.lines - height) / 2)
-  
+
   local buf = vim.api.nvim_create_buf(false, true)
-  
+
   vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(buf, 'swapfile', false)
   vim.api.nvim_buf_set_option(buf, 'filetype', 'jira')
-  
+
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     width = width,
@@ -28,9 +28,9 @@ function M.create_floating_window(title, content)
     style = 'minimal',
     border = 'rounded',
     title = title,
-    title_pos = 'center'
+    title_pos = 'center',
   })
-  
+
   return buf, win
 end
 
@@ -38,11 +38,11 @@ function M.create_split_window(title, content)
   vim.cmd('split')
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_win_set_buf(0, buf)
-  
+
   vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(buf, 'swapfile', false)
   vim.api.nvim_buf_set_option(buf, 'filetype', 'jira')
-  
+
   return buf, vim.api.nvim_get_current_win()
 end
 
@@ -51,7 +51,7 @@ local function get_jira_icon(text)
   if not devicons then
     return ''
   end
-  
+
   local icon_map = {
     ['Bug'] = '🐛',
     ['Task'] = '📋',
@@ -70,15 +70,15 @@ local function get_jira_icon(text)
     ['High'] = '🟠',
     ['Medium'] = '🟡',
     ['Low'] = '🟢',
-    ['Lowest'] = '🔵'
+    ['Lowest'] = '🔵',
   }
-  
+
   for key, icon in pairs(icon_map) do
     if text:find(key) then
       return icon .. ' '
     end
   end
-  
+
   return ''
 end
 
@@ -87,10 +87,10 @@ local function format_jira_content(content)
   if not config.get('enhanced_formatting') then
     return vim.split(content, '\n', { plain = true })
   end
-  
+
   local lines = vim.split(content, '\n', { plain = true })
   local formatted_lines = {}
-  
+
   for _, line in ipairs(lines) do
     -- Add icons to issue types and statuses if enabled
     if config.get('show_icons') then
@@ -98,34 +98,34 @@ local function format_jira_content(content)
       if icon ~= '' then
         line = icon .. line
       end
-      
+
       -- Enhance issue key highlighting
       line = line:gsub('([A-Z]+-[0-9]+)', '🎫 %1')
-      
+
       -- Add visual separators
       if line:match('^%s*[─┌┐└┘│├┤┬┴┼]') then
         line = '📊 ' .. line
       end
     end
-    
+
     table.insert(formatted_lines, line)
   end
-  
+
   return formatted_lines
 end
 
 function M.show_output(title, content)
   local lines = format_jira_content(content)
-  
+
   local buf, win
   if config.get('use_floating_window') then
     buf, win = M.create_floating_window(title, content)
   else
     buf, win = M.create_split_window(title, content)
   end
-  
+
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  
+
   -- Add a small delay before making the buffer non-modifiable
   -- This allows plugins like img-clip.nvim to complete paste operations
   vim.defer_fn(function()
@@ -134,22 +134,22 @@ function M.show_output(title, content)
       vim.api.nvim_buf_set_option(buf, 'modifiable', false)
     end
   end, 100)
-  
+
   local keymaps = config.get('keymaps')
-  
+
   vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.close, ':q<CR>', {
     noremap = true,
     silent = true,
-    desc = 'Close window'
+    desc = 'Close window',
   })
-  
+
   vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.refresh, '', {
     noremap = true,
     silent = true,
     callback = function()
       -- Extract action info from buffer title
       local action_type = title:match('^([^:]+):')
-      
+
       if action_type == 'Issue' then
         -- Extract issue key
         local issue_key = title:match('Issue:%s*([A-Z]+-[0-9]+)')
@@ -170,26 +170,26 @@ function M.show_output(title, content)
         utils.show_info('Refreshing not available for this view')
       end
     end,
-    desc = 'Refresh content'
+    desc = 'Refresh content',
   })
-  
+
   local function get_issue_key_under_cursor()
     local line = vim.api.nvim_get_current_line()
     local issue_key = line:match('([A-Z]+-[0-9]+)')
     return issue_key
   end
-  
+
   local function get_issue_key_from_buffer(title)
     -- First try to extract from buffer title (e.g., "Issue: PROJ-123")
     local issue_key = title:match('Issue:%s*([A-Z]+-[0-9]+)')
     if issue_key then
       return issue_key
     end
-    
+
     -- Fallback to cursor detection
     return get_issue_key_under_cursor()
   end
-  
+
   vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.open_browser, '', {
     noremap = true,
     silent = true,
@@ -201,9 +201,9 @@ function M.show_output(title, content)
         vim.notify('No issue key found under cursor', vim.log.levels.WARN)
       end
     end,
-    desc = 'Open issue in browser'
+    desc = 'Open issue in browser',
   })
-  
+
   vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.view_issue, '', {
     noremap = true,
     silent = true,
@@ -215,9 +215,9 @@ function M.show_output(title, content)
         vim.notify('No issue key found under cursor', vim.log.levels.WARN)
       end
     end,
-    desc = 'View issue details'
+    desc = 'View issue details',
   })
-  
+
   -- Only set the transition keymap if it exists in config
   if keymaps.transition_issue then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.transition_issue, '', {
@@ -255,10 +255,10 @@ function M.show_output(title, content)
           vim.notify('No issue key found in buffer', vim.log.levels.WARN)
         end
       end,
-      desc = 'Transition issue state'
+      desc = 'Transition issue state',
     })
   end
-  
+
   -- Add comment keymap if configured
   if keymaps.comment_issue then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.comment_issue, '', {
@@ -272,11 +272,11 @@ function M.show_output(title, content)
           vim.notify('No issue key found in buffer', vim.log.levels.WARN)
         end
       end,
-      desc = 'Add comment to issue'
+      desc = 'Add comment to issue',
     })
   end
-  
-  -- Add view comments keymap if configured  
+
+  -- Add view comments keymap if configured
   if keymaps.view_comments then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.view_comments, '', {
       noremap = true,
@@ -289,10 +289,10 @@ function M.show_output(title, content)
           vim.notify('No issue key found in buffer', vim.log.levels.WARN)
         end
       end,
-      desc = 'View issue comments'
+      desc = 'View issue comments',
     })
   end
-  
+
   -- Add assign keymap if configured
   if keymaps.assign_issue then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.assign_issue, '', {
@@ -303,7 +303,7 @@ function M.show_output(title, content)
         if issue_key then
           vim.ui.input({
             prompt = 'Assign ' .. issue_key .. ' to (me/username/email/unassign): ',
-            default = 'me'
+            default = 'me',
           }, function(assignee)
             if assignee and assignee ~= '' then
               require('jira-nvim.cli').issue_assign(issue_key, assignee)
@@ -313,10 +313,10 @@ function M.show_output(title, content)
           vim.notify('No issue key found in buffer', vim.log.levels.WARN)
         end
       end,
-      desc = 'Assign issue'
+      desc = 'Assign issue',
     })
   end
-  
+
   -- Add watch keymap if configured
   if keymaps.watch_issue then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.watch_issue, '', {
@@ -327,7 +327,7 @@ function M.show_output(title, content)
         if issue_key then
           vim.ui.input({
             prompt = 'Add watcher to ' .. issue_key .. ' (me/username/email): ',
-            default = 'me'
+            default = 'me',
           }, function(watcher)
             if watcher and watcher ~= '' then
               require('jira-nvim.cli').issue_watch(issue_key, watcher)
@@ -337,10 +337,10 @@ function M.show_output(title, content)
           vim.notify('No issue key found in buffer', vim.log.levels.WARN)
         end
       end,
-      desc = 'Add watcher to issue'
+      desc = 'Add watcher to issue',
     })
   end
-  
+
   -- Add bookmark toggle keymap
   if keymaps.toggle_bookmark then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.toggle_bookmark, '', {
@@ -354,10 +354,10 @@ function M.show_output(title, content)
           vim.notify('No issue key found in buffer', vim.log.levels.WARN)
         end
       end,
-      desc = 'Toggle bookmark'
+      desc = 'Toggle bookmark',
     })
   end
-  
+
   -- Add history keymap
   if keymaps.show_history then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.show_history, '', {
@@ -366,10 +366,10 @@ function M.show_output(title, content)
       callback = function()
         require('jira-nvim.search').show_history()
       end,
-      desc = 'Show issue history'
+      desc = 'Show issue history',
     })
   end
-  
+
   -- Add bookmarks keymap
   if keymaps.show_bookmarks then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.show_bookmarks, '', {
@@ -378,10 +378,10 @@ function M.show_output(title, content)
       callback = function()
         require('jira-nvim.search').show_bookmarks()
       end,
-      desc = 'Show bookmarks'
+      desc = 'Show bookmarks',
     })
   end
-  
+
   -- Add fuzzy search keymap
   if keymaps.fuzzy_search then
     vim.api.nvim_buf_set_keymap(buf, 'n', keymaps.fuzzy_search, '', {
@@ -390,10 +390,10 @@ function M.show_output(title, content)
       callback = function()
         require('jira-nvim.search').telescope_search_issues()
       end,
-      desc = 'Fuzzy search issues'
+      desc = 'Fuzzy search issues',
     })
   end
-  
+
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'cursorline', true)
 end
@@ -479,7 +479,7 @@ function M.show_help()
     '  /         - Fuzzy search issues (requires telescope)',
     '',
     'Examples:',
-    '  :JiraIssueList "assignee = currentUser() AND status = \"To Do\""',
+    '  :JiraIssueList "assignee = currentUser() AND status = "To Do""',
     '  :JiraIssueList "project = PROJ AND sprint in openSprints()"',
     '  :JiraIssueView PROJ-123',
     '  :JiraIssueCreate',
@@ -520,9 +520,9 @@ function M.show_help()
     '  or run :JiraSetup to configure interactively',
     '',
     'For more information and documentation, see:',
-    '  https://github.com/WillianPaiva/jira-nvim-plugin'
+    '  https://github.com/WillianPaiva/jira-nvim-plugin',
   }
-  
+
   M.show_output('Jira Help', table.concat(help_text, '\n'))
 end
 
@@ -530,10 +530,10 @@ function M.show_comment_buffer(issue_key)
   local buf = vim.api.nvim_create_buf(false, true)
   local width = math.floor(vim.o.columns * 0.6)
   local height = math.floor(vim.o.lines * 0.4)
-  
+
   local col = math.floor((vim.o.columns - width) / 2)
   local row = math.floor((vim.o.lines - height) / 2)
-  
+
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     width = width,
@@ -543,45 +543,45 @@ function M.show_comment_buffer(issue_key)
     style = 'minimal',
     border = 'rounded',
     title = 'Add Comment to ' .. issue_key,
-    title_pos = 'center'
+    title_pos = 'center',
   })
-  
+
   vim.api.nvim_buf_set_option(buf, 'buftype', 'acwrite')
   vim.api.nvim_buf_set_option(buf, 'swapfile', false)
   vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
-  
+
   -- Add placeholder text
   local placeholder = {
     '# Add your comment below',
     '',
     '<!-- Write your comment here -->',
     '<!-- You can use markdown formatting -->',
-    '<!-- Press <C-s> to submit, <C-c> to cancel -->'
+    '<!-- Press <C-s> to submit, <C-c> to cancel -->',
   }
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, placeholder)
-  
+
   -- Position cursor after placeholder
-  vim.api.nvim_win_set_cursor(win, {6, 0})
-  
+  vim.api.nvim_win_set_cursor(win, { 6, 0 })
+
   -- Set up keymaps for the comment buffer
   local opts = { noremap = true, silent = true, buffer = buf }
-  
+
   -- Submit comment
-  vim.keymap.set({'n', 'i'}, '<C-s>', function()
+  vim.keymap.set({ 'n', 'i' }, '<C-s>', function()
     require('jira-nvim.cli').issue_comment_add_from_buffer(issue_key, buf)
     vim.api.nvim_win_close(win, true)
   end, vim.tbl_extend('force', opts, { desc = 'Submit comment' }))
-  
+
   -- Cancel comment
-  vim.keymap.set({'n', 'i'}, '<C-c>', function()
+  vim.keymap.set({ 'n', 'i' }, '<C-c>', function()
     vim.api.nvim_win_close(win, true)
   end, vim.tbl_extend('force', opts, { desc = 'Cancel comment' }))
-  
+
   -- Alternative close with q in normal mode
   vim.keymap.set('n', 'q', function()
     vim.api.nvim_win_close(win, true)
   end, vim.tbl_extend('force', opts, { desc = 'Close comment buffer' }))
-  
+
   -- Start in insert mode for better UX
   vim.cmd('startinsert')
 end

@@ -17,33 +17,33 @@ local errors = require('jira-nvim.errors')
 local form_enhancements = require('jira-nvim.form_enhancements')
 
 -- Check if LazyVim is available for better integration
-local has_lazyvim = pcall(require, "lazyvim.util")
+local has_lazyvim = pcall(require, 'lazyvim.util')
 
 function M.setup(opts)
   config.setup(opts or {})
-  
+
   -- Initialize user cache
   user.init()
-  
+
   -- Setup API caching
   cache.configure({
     enabled = config.get('enable_caching') or true,
     ttl = config.get('cache_ttl') or 300,
-    max_size = config.get('cache_size') or 100
+    max_size = config.get('cache_size') or 100,
   })
   cache.setup(api)
-  
+
   -- Setup enhanced error handling
   errors.setup(api)
-  
+
   -- Initialize form enhancements
   form_enhancements.init()
 
   -- Register Setup command to configure credentials
   vim.api.nvim_create_user_command('JiraSetup', function()
     -- Run configuration setup interactively
-    config.setup({force_setup = true})
-    
+    config.setup({ force_setup = true })
+
     -- Test the API connection
     utils.show_info('Testing Jira API connection...')
     api.get_current_user(function(err, data)
@@ -51,63 +51,66 @@ function M.setup(opts)
         utils.show_error('Connection failed: ' .. err)
       else
         utils.show_info('Connection successful! Connected as: ' .. data.displayName)
-        
+
         -- Ask about setting default board
         local project_key = config.get('project_key') or config.get('default_project')
         if project_key and project_key ~= '' then
           vim.defer_fn(function()
             local want_board = vim.fn.input({
-              prompt = "\nDo you want to setup a default board for project " .. project_key .. "? (y/n): "
+              prompt = '\nDo you want to setup a default board for project ' .. project_key .. '? (y/n): ',
             })
-            
+
             if want_board:lower() == 'y' then
               vim.defer_fn(function()
                 utils.show_info('Loading boards for project ' .. project_key)
-                
+
                 api.get_project_boards(project_key, function(err, boards)
                   if err then
                     utils.show_error('Error loading project boards: ' .. err)
                     return
                   end
-                  
+
                   if not boards or #boards == 0 then
                     utils.show_warning('No boards found for project ' .. project_key)
                     return
                   end
-                  
+
                   -- Display boards with IDs for selection
-                  local board_list = {'Available boards for project ' .. project_key .. ':', '-----------------------------------------'}
+                  local board_list = {
+                    'Available boards for project ' .. project_key .. ':',
+                    '-----------------------------------------',
+                  }
                   for _, board in ipairs(boards) do
                     table.insert(board_list, string.format('%d: %s (%s)', board.id, board.name, board.type or 'scrum'))
                   end
-                  
-                  vim.api.nvim_echo({{'\n' .. table.concat(board_list, '\n'), 'Normal'}}, false, {})
-                  
-                  local board_id = vim.fn.input({prompt = "\nEnter board ID to set as default: "})
-                  
+
+                  vim.api.nvim_echo({ { '\n' .. table.concat(board_list, '\n'), 'Normal' } }, false, {})
+
+                  local board_id = vim.fn.input({ prompt = '\nEnter board ID to set as default: ' })
+
                   if board_id and board_id ~= '' and tonumber(board_id) then
                     -- Save the board_id to config
                     local current_options = config.options
                     current_options.default_board = board_id
-                    
+
                     -- Save to persistent storage
                     local config_dir = vim.fn.stdpath('config') .. '/jira-nvim'
                     local config_file = config_dir .. '/auth.json'
-                    
+
                     -- Create directory if it doesn't exist
                     if vim.fn.isdirectory(config_dir) == 0 then
                       vim.fn.mkdir(config_dir, 'p')
                     end
-                    
+
                     local creds = {
                       jira_url = current_options.jira_url,
                       jira_email = current_options.jira_email,
                       jira_api_token = current_options.jira_api_token,
                       auth_type = current_options.auth_type,
                       project_key = current_options.project_key,
-                      default_board = board_id
+                      default_board = board_id,
                     }
-                    
+
                     local f = io.open(config_file, 'w')
                     if f then
                       f:write(vim.fn.json_encode(creds))
@@ -115,10 +118,11 @@ function M.setup(opts)
                       -- Set file permissions to 600 (read/write by owner only)
                       vim.fn.system('chmod 600 ' .. config_file)
                       utils.show_info('Default board set to: ' .. board_id)
-                      
+
                       -- Ask if they want to see the current sprint
                       vim.defer_fn(function()
-                        local want_sprint = vim.fn.input({prompt = "\nDo you want to see issues in the current sprint? (y/n): "})
+                        local want_sprint =
+                          vim.fn.input({ prompt = '\nDo you want to see issues in the current sprint? (y/n): ' })
                         if want_sprint:lower() == 'y' then
                           cli.current_sprint()
                         end
@@ -137,7 +141,7 @@ function M.setup(opts)
       end
     end)
   end, { desc = 'Setup Jira API connection' })
-  
+
   -- Register API test command
   vim.api.nvim_create_user_command('JiraTestConnection', function()
     utils.show_info('Testing Jira API connection...')
@@ -149,12 +153,12 @@ function M.setup(opts)
       end
     end)
   end, { desc = 'Test Jira API connection' })
-  
+
   -- Register init command for easy setup
   vim.api.nvim_create_user_command('JiraInit', function()
     vim.cmd('JiraSetup')
   end, { desc = 'Initialize Jira plugin' })
-  
+
   -- Show status of Jira configuration
   vim.api.nvim_create_user_command('JiraStatus', function()
     local url = config.get('jira_url') or 'Not set'
@@ -163,7 +167,7 @@ function M.setup(opts)
     local project = config.get('project_key') or 'None'
     local board = config.get('default_board') or 'None'
     local token_status = config.get('jira_api_token') and 'Set' or 'Not set'
-    
+
     local status_text = {
       '🔌 Jira Configuration Status',
       '============================',
@@ -180,9 +184,9 @@ function M.setup(opts)
       '  :JiraTestConnection - Test API connection',
       '  :JiraInit - Initialize configuration',
     }
-    
+
     ui.show_output('Jira Status', table.concat(status_text, '\n'))
-    
+
     -- Also try to test the connection in background
     api.get_current_user(function(err, data)
       if err then
@@ -192,7 +196,7 @@ function M.setup(opts)
       end
     end)
   end, { desc = 'Show Jira connection status' })
-  
+
   vim.api.nvim_create_user_command('JiraIssueList', function(args)
     if args.args and args.args ~= '' then
       cli.issue_list(args.args)
@@ -201,16 +205,16 @@ function M.setup(opts)
     end
   end, {
     nargs = '*',
-    desc = 'List Jira issues'
+    desc = 'List Jira issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueView', function(args)
     cli.issue_view(args.args)
   end, {
     nargs = 1,
-    desc = 'View Jira issue details'
+    desc = 'View Jira issue details',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueCreate', function(args)
     if args.args and args.args ~= '' then
       cli.issue_create(args.args)
@@ -219,35 +223,35 @@ function M.setup(opts)
     end
   end, {
     nargs = '*',
-    desc = 'Create new Jira issue'
+    desc = 'Create new Jira issue',
   })
-  
+
   vim.api.nvim_create_user_command('JiraSprintList', function(args)
-    local arg_str = args.args or ""
-    if arg_str == "--current" then
+    local arg_str = args.args or ''
+    if arg_str == '--current' then
       cli.current_sprint()
     else
       cli.sprint_list(args.args)
     end
   end, {
     nargs = '*',
-    desc = 'List sprints'
+    desc = 'List sprints',
   })
-  
+
   vim.api.nvim_create_user_command('JiraEpicList', function(args)
     cli.epic_list(args.args)
   end, {
     nargs = '*',
-    desc = 'List epics'
+    desc = 'List epics',
   })
-  
+
   vim.api.nvim_create_user_command('JiraOpen', function(args)
     cli.open(args.args)
   end, {
     nargs = '?',
-    desc = 'Open Jira issue or project in browser'
+    desc = 'Open Jira issue or project in browser',
   })
-  
+
   vim.api.nvim_create_user_command('JiraProjectList', function(args)
     local search = require('jira-nvim.search')
     if pcall(require, 'telescope') then
@@ -256,9 +260,9 @@ function M.setup(opts)
       cli.project_list()
     end
   end, {
-    desc = 'List Jira projects (with fuzzy search if telescope available)'
+    desc = 'List Jira projects (with fuzzy search if telescope available)',
   })
-  
+
   vim.api.nvim_create_user_command('JiraBoardList', function(args)
     local search = require('jira-nvim.search')
     if pcall(require, 'telescope') then
@@ -268,17 +272,17 @@ function M.setup(opts)
     end
   end, {
     nargs = '?',
-    desc = 'List Jira boards (with fuzzy search if telescope available)'
+    desc = 'List Jira boards (with fuzzy search if telescope available)',
   })
-  
+
   vim.api.nvim_create_user_command('JiraProjectBoards', function()
     local project_key = config.get('project_key') or config.get('default_project')
-    
+
     if not project_key or project_key == '' then
       utils.show_error('No default project configured. Please set a project in the configuration.')
       return
     end
-    
+
     local search = require('jira-nvim.search')
     if pcall(require, 'telescope') then
       search.telescope_search_boards(project_key)
@@ -286,74 +290,77 @@ function M.setup(opts)
       cli.board_list(project_key)
     end
   end, {
-    desc = 'List boards for the default project'
+    desc = 'List boards for the default project',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueTransition', function(args)
     local input = args.args
-    local issue_key, rest = input:match("^(%S+)%s+(.*)$")
-    
+    local issue_key, rest = input:match('^(%S+)%s+(.*)$')
+
     if not issue_key or not rest then
-      vim.notify('Usage: JiraIssueTransition ISSUE-KEY "STATE" ["COMMENT"] ["ASSIGNEE"] ["RESOLUTION"]', vim.log.levels.WARN)
+      vim.notify(
+        'Usage: JiraIssueTransition ISSUE-KEY "STATE" ["COMMENT"] ["ASSIGNEE"] ["RESOLUTION"]',
+        vim.log.levels.WARN
+      )
       return
     end
-    
+
     -- Parse quoted arguments
     local parts = {}
-    local current = ""
+    local current = ''
     local in_quotes = false
     local i = 1
-    
+
     while i <= #rest do
       local char = rest:sub(i, i)
       if char == '"' then
         if in_quotes then
           table.insert(parts, current)
-          current = ""
+          current = ''
           in_quotes = false
         else
           in_quotes = true
         end
       elseif char == ' ' and not in_quotes then
-        if current ~= "" then
+        if current ~= '' then
           table.insert(parts, current)
-          current = ""
+          current = ''
         end
       else
         current = current .. char
       end
       i = i + 1
     end
-    
-    if current ~= "" then
+
+    if current ~= '' then
       table.insert(parts, current)
     end
-    
+
     local state = parts[1]
     local comment = parts[2]
     local assignee = parts[3]
     local resolution = parts[4]
-    
+
     if not state then
       vim.notify('State is required for issue transition', vim.log.levels.WARN)
       return
     end
-    
+
     cli.issue_transition(issue_key, state, comment, assignee, resolution)
   end, {
     nargs = '+',
-    desc = 'Transition Jira issue to new state'
+    desc = 'Transition Jira issue to new state',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueComment', function(args)
     local input = args.args
     local issue_key, comment = input:match('^(%S+)%s+(.+)$')
-    
+
     if not issue_key then
       vim.notify('Usage: JiraIssueComment ISSUE-KEY [comment text]', vim.log.levels.WARN)
       return
     end
-    
+
     if comment and comment ~= '' then
       cli.issue_comment_add(issue_key, comment)
     else
@@ -361,371 +368,381 @@ function M.setup(opts)
     end
   end, {
     nargs = '+',
-    desc = 'Add comment to Jira issue'
+    desc = 'Add comment to Jira issue',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueComments', function(args)
     local parts = vim.split(args.args, ' ', { plain = true })
     local issue_key = parts[1]
     local count = tonumber(parts[2]) or 5
-    
+
     if not issue_key then
       vim.notify('Usage: JiraIssueComments ISSUE-KEY [count]', vim.log.levels.WARN)
       return
     end
-    
+
     cli.issue_view(issue_key, count)
   end, {
     nargs = '+',
-    desc = 'View comments for Jira issue'
+    desc = 'View comments for Jira issue',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueAssign', function(args)
     local parts = vim.split(args.args, ' ', { plain = true })
     local issue_key = parts[1]
     local assignee = parts[2]
-    
+
     if not issue_key then
       vim.notify('Usage: JiraIssueAssign ISSUE-KEY ASSIGNEE', vim.log.levels.WARN)
       return
     end
-    
+
     if not assignee then
-      vim.notify('Usage: JiraIssueAssign ISSUE-KEY ASSIGNEE (use "me", username, email, or "unassign")', vim.log.levels.WARN)
+      vim.notify(
+        'Usage: JiraIssueAssign ISSUE-KEY ASSIGNEE (use "me", username, email, or "unassign")',
+        vim.log.levels.WARN
+      )
       return
     end
-    
+
     cli.issue_assign(issue_key, assignee)
   end, {
     nargs = '+',
-    desc = 'Assign Jira issue to user'
+    desc = 'Assign Jira issue to user',
   })
-  
+
   vim.api.nvim_create_user_command('JiraIssueWatch', function(args)
     local parts = vim.split(args.args, ' ', { plain = true })
     local issue_key = parts[1]
     local watcher = parts[2] or 'me'
-    
+
     if not issue_key then
       vim.notify('Usage: JiraIssueWatch ISSUE-KEY [WATCHER]', vim.log.levels.WARN)
       return
     end
-    
+
     cli.issue_watch(issue_key, watcher)
   end, {
     nargs = '+',
-    desc = 'Add watcher to Jira issue'
+    desc = 'Add watcher to Jira issue',
   })
-  
+
   -- Search and navigation commands
   vim.api.nvim_create_user_command('JiraSearch', function()
     search.telescope_search_issues()
   end, {
-    desc = 'Fuzzy search Jira issues'
+    desc = 'Fuzzy search Jira issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraHistory', function()
     search.show_history()
   end, {
-    desc = 'Show issue history'
+    desc = 'Show issue history',
   })
-  
+
   vim.api.nvim_create_user_command('JiraBookmarks', function()
     search.show_bookmarks()
   end, {
-    desc = 'Show bookmarked issues'
+    desc = 'Show bookmarked issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraBookmark', function(args)
     local parts = vim.split(args.args, ' ', { plain = true })
     local issue_key = parts[1]
     local description = table.concat(vim.list_slice(parts, 2), ' ')
-    
+
     if not issue_key then
       vim.notify('Usage: JiraBookmark ISSUE-KEY [description]', vim.log.levels.WARN)
       return
     end
-    
+
     search.toggle_bookmark(issue_key, description)
   end, {
     nargs = '+',
-    desc = 'Toggle bookmark for issue'
+    desc = 'Toggle bookmark for issue',
   })
-  
+
   vim.api.nvim_create_user_command('JiraJQL', function()
     search.jql_search()
   end, {
-    desc = 'Search issues with JQL'
+    desc = 'Search issues with JQL',
   })
-  
+
   vim.api.nvim_create_user_command('JiraMyIssues', function()
     search.show_my_issues()
   end, {
-    desc = 'Show my assigned issues'
+    desc = 'Show my assigned issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraRecentIssues', function()
     search.show_recent_issues()
   end, {
-    desc = 'Show recently created issues'
+    desc = 'Show recently created issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraHighPriorityIssues', function()
     search.show_high_priority_issues()
   end, {
-    desc = 'Show high priority issues'
+    desc = 'Show high priority issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraUnassignedIssues', function()
     search.show_unassigned_issues()
   end, {
-    desc = 'Show unassigned issues'
+    desc = 'Show unassigned issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraCurrentSprint', function()
     cli.current_sprint()
   end, {
-    desc = 'Show issues from the current active sprint'
+    desc = 'Show issues from the current active sprint',
   })
-  
+
   vim.api.nvim_create_user_command('JiraSetDefaultBoard', function(args)
     if args.args and args.args ~= '' then
       local board_id = args.args
-      
+
       -- Save the board_id to config
       local current_options = config.options
       current_options.default_board = board_id
-      
+
       -- Save to persistent storage
       local config_dir = vim.fn.stdpath('config') .. '/jira-nvim'
       local config_file = config_dir .. '/auth.json'
-      
+
       -- Create directory if it doesn't exist
       if vim.fn.isdirectory(config_dir) == 0 then
         vim.fn.mkdir(config_dir, 'p')
       end
-      
+
       local creds = {
         jira_url = current_options.jira_url,
         jira_email = current_options.jira_email,
         jira_api_token = current_options.jira_api_token,
         auth_type = current_options.auth_type,
         project_key = current_options.project_key,
-        default_board = board_id
+        default_board = board_id,
       }
-      
+
       local f = io.open(config_file, 'w')
       if f then
         f:write(vim.fn.json_encode(creds))
         f:close()
         -- Set file permissions to 600 (read/write by owner only)
         vim.fn.system('chmod 600 ' .. config_file)
-        utils.show_info('Default board set to: ' .. board_id .. '\n\nTo find your board ID, use :JiraProjectBoards to list boards for your default project\nor :JiraBoardList to see all available boards.')
+        utils.show_info(
+          'Default board set to: '
+            .. board_id
+            .. '\n\nTo find your board ID, use :JiraProjectBoards to list boards for your default project\nor :JiraBoardList to see all available boards.'
+        )
       else
         utils.show_error('Failed to save configuration')
       end
     else
-      utils.show_warning('Usage: JiraSetDefaultBoard <board_id>\n\nTo find your board ID, use :JiraProjectBoards or :JiraBoardList to see available boards.')
+      utils.show_warning(
+        'Usage: JiraSetDefaultBoard <board_id>\n\nTo find your board ID, use :JiraProjectBoards or :JiraBoardList to see available boards.'
+      )
     end
   end, {
     nargs = 1,
-    desc = 'Set default board ID for sprints'
+    desc = 'Set default board ID for sprints',
   })
-  
+
   vim.api.nvim_create_user_command('JiraShowBoards', function()
     local project_key = config.get('project_key') or config.get('default_project')
-    
+
     if not project_key or project_key == '' then
       utils.show_error('No default project configured. Please set a project in the configuration.')
       return
     end
-    
+
     utils.show_info('Loading boards for project ' .. project_key)
-    
+
     api.get_project_boards(project_key, function(err, boards)
       if err then
         utils.show_error('Error loading project boards: ' .. err)
         return
       end
-      
+
       if not boards or #boards == 0 then
         utils.show_warning('No boards found for project ' .. project_key)
         return
       end
-      
+
       -- Display boards with IDs for selection
-      local board_list = {'Available boards for project ' .. project_key .. ':', '-----------------------------------------'}
-      
+      local board_list =
+        { 'Available boards for project ' .. project_key .. ':', '-----------------------------------------' }
+
       for _, board in ipairs(boards) do
         table.insert(board_list, string.format('%d: %s (%s)', board.id, board.name, board.type or 'scrum'))
       end
-      
+
       local output = table.concat(board_list, '\n')
       ui.show_output('Project Boards with IDs', output)
     end)
   end, {
-    desc = 'Show available board IDs for the default project'
+    desc = 'Show available board IDs for the default project',
   })
-  
+
   vim.api.nvim_create_user_command('JiraHelp', function()
     ui.show_help()
   end, {
-    desc = 'Show Jira plugin help'
+    desc = 'Show Jira plugin help',
   })
-  
+
   -- Convenience commands for quick access
   vim.api.nvim_create_user_command('JiraRecentIssues', function()
     form.recent_issues()
   end, {
-    desc = 'Show issues created in the last 7 days'
+    desc = 'Show issues created in the last 7 days',
   })
-  
+
   vim.api.nvim_create_user_command('JiraHighPriorityIssues', function()
     form.high_priority_issues()
   end, {
-    desc = 'Show high priority issues'
+    desc = 'Show high priority issues',
   })
-  
+
   vim.api.nvim_create_user_command('JiraUnassignedIssues', function()
     form.unassigned_issues()
   end, {
-    desc = 'Show unassigned issues'
+    desc = 'Show unassigned issues',
   })
-  
+
   -- Dashboard commands
   vim.api.nvim_create_user_command('JiraDashboard', function()
     dashboard.show_dashboard()
   end, {
-    desc = 'Show personalized Jira dashboard'
+    desc = 'Show personalized Jira dashboard',
   })
-  
+
   vim.api.nvim_create_user_command('JiraStats', function()
     dashboard.show_stats()
   end, {
-    desc = 'Show personal Jira statistics'
+    desc = 'Show personal Jira statistics',
   })
-  
+
   -- Context awareness commands
   vim.api.nvim_create_user_command('JiraContext', function()
     context.show_context()
   end, {
-    desc = 'Show Jira context from current branch/file'
+    desc = 'Show Jira context from current branch/file',
   })
-  
+
   vim.api.nvim_create_user_command('JiraCommit', function()
     context.create_commit_with_issue_key()
   end, {
-    desc = 'Create git commit with Jira issue key'
+    desc = 'Create git commit with Jira issue key',
   })
-  
+
   vim.api.nvim_create_user_command('JiraCreateBranch', function()
     context.create_branch_from_issue()
   end, {
-    desc = 'Create git branch from Jira issue'
+    desc = 'Create git branch from Jira issue',
   })
-  
+
   -- Issue key under cursor commands
   vim.api.nvim_create_user_command('JiraViewUnderCursor', function()
     context.go_to_issue_under_cursor()
   end, {
-    desc = 'View Jira issue under cursor'
+    desc = 'View Jira issue under cursor',
   })
-  
+
   vim.api.nvim_create_user_command('JiraOpenUnderCursor', function()
     context.open_issue_under_cursor()
   end, {
-    desc = 'Open Jira issue under cursor in browser'
+    desc = 'Open Jira issue under cursor in browser',
   })
-  
+
   -- Git workflow integration commands
   vim.api.nvim_create_user_command('JiraGitCommitHistory', function()
     git.show_commit_history()
   end, {
-    desc = 'Show Git commit history with Jira links'
+    desc = 'Show Git commit history with Jira links',
   })
-  
+
   vim.api.nvim_create_user_command('JiraGitBranch', function()
     git.create_branch_with_prefix()
   end, {
-    desc = 'Create a git branch from a Jira issue with prefix'
+    desc = 'Create a git branch from a Jira issue with prefix',
   })
-  
+
   vim.api.nvim_create_user_command('JiraGitLinkCommit', function(args)
     local parts = vim.split(args.args, ' ', { plain = true })
     local commit_hash = parts[1] or 'HEAD'
     local issue_key = parts[2]
-    
+
     if not issue_key then
       vim.fn.inputsave()
       issue_key = vim.fn.input({
-        prompt = "Enter Jira issue key: "
+        prompt = 'Enter Jira issue key: ',
       })
       vim.fn.inputrestore()
-      
-      if issue_key == "" then
-        utils.show_warning("Operation canceled")
+
+      if issue_key == '' then
+        utils.show_warning('Operation canceled')
         return
       end
     end
-    
+
     git.link_commit_to_issue(commit_hash, issue_key)
   end, {
     nargs = '*',
-    desc = 'Link a git commit to a Jira issue'
+    desc = 'Link a git commit to a Jira issue',
   })
-  
+
   vim.api.nvim_create_user_command('JiraGitUpdateIssue', function()
     git.update_issue_with_branch()
   end, {
-    desc = 'Update Jira issue with Git branch info'
+    desc = 'Update Jira issue with Git branch info',
   })
-  
+
   vim.api.nvim_create_user_command('JiraGitHooks', function()
     git.show_git_hooks_help()
   end, {
-    desc = 'Show Git workflow hooks help'
+    desc = 'Show Git workflow hooks help',
   })
-  
+
   vim.api.nvim_create_user_command('JiraInstallGitHooks', function()
     git.install_git_hooks()
   end, {
-    desc = 'Install Git hooks for Jira workflow'
+    desc = 'Install Git hooks for Jira workflow',
   })
-  
+
   -- LSP integration commands
   vim.api.nvim_create_user_command('JiraEnableLsp', function()
     lsp.setup()
   end, {
-    desc = 'Enable Jira LSP integration (hover, highlighting, code actions)'
+    desc = 'Enable Jira LSP integration (hover, highlighting, code actions)',
   })
-  
+
   vim.api.nvim_create_user_command('JiraHighlightKeys', function()
     lsp.highlight_issue_keys(0)
   end, {
-    desc = 'Highlight Jira issue keys in current buffer'
+    desc = 'Highlight Jira issue keys in current buffer',
   })
-  
+
   -- Cache management commands
   vim.api.nvim_create_user_command('JiraCacheStats', function()
     cache.show_stats()
   end, {
-    desc = 'Show Jira API cache statistics'
+    desc = 'Show Jira API cache statistics',
   })
-  
+
   vim.api.nvim_create_user_command('JiraCacheClear', function(args)
-    local cache_type = args.args ~= "" and args.args or nil
+    local cache_type = args.args ~= '' and args.args or nil
     cache.clear(cache_type)
-    utils.show_info("Cache" .. (cache_type and " for " .. cache_type or "") .. " cleared")
+    utils.show_info('Cache' .. (cache_type and ' for ' .. cache_type or '') .. ' cleared')
   end, {
     nargs = '?',
-    desc = 'Clear Jira API cache (optional: specify cache type)'
+    desc = 'Clear Jira API cache (optional: specify cache type)',
   })
-  
+
   -- Troubleshooting command
   vim.api.nvim_create_user_command('JiraTroubleshoot', function()
     errors.show_troubleshooting()
   end, {
-    desc = 'Show Jira troubleshooting guide'
+    desc = 'Show Jira troubleshooting guide',
   })
 end
 
