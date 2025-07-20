@@ -5,6 +5,7 @@ A comprehensive Neovim plugin that integrates directly with the Jira REST API to
 ![Neovim](https://img.shields.io/badge/Neovim-0.7+-green.svg)
 ![Lua](https://img.shields.io/badge/Lua-5.1+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Tests](https://github.com/WillianPaiva/jira-nvim-plugin/actions/workflows/test.yml/badge.svg)
 
 📚 [**Comprehensive Documentation**](./docs/DOCUMENTATION.md) | [Quick Start](#installation) | [Features](#-features) | [Configuration](#%EF%B8%8F-configuration)
 

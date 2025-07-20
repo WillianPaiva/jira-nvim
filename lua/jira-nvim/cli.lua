@@ -1,8 +1,3 @@
---- Jira Neovim CLI Module
--- This module provides high-level commands for interacting with Jira via the Neovim interface.
--- It exposes functions to list, view, and manipulate issues, projects, boards, sprints, epics,
--- as well as to transition, comment, assign, and watch issues, and to open Jira resources in a browser.
-
 local M = {}
 
 local config = require('jira-nvim.config')
@@ -15,20 +10,7 @@ local api = require('jira-nvim.api')
 local function execute_api_call(operation_name, api_call, callback)
   -- Check API availability
   if not utils.is_api_available() then
-    local config = require('jira-nvim.config')
-    local base_url = config.get('jira_url')
-    local email = config.get('jira_email')
-    local api_token = config.get('jira_api_token')
-    
-    local missing = {}
-    if not base_url or base_url == '' then table.insert(missing, 'Jira URL') end
-    if not email or email == '' then table.insert(missing, 'Email') end
-    if not api_token or api_token == '' then table.insert(missing, 'API Token') end
-    
-    local error_msg = 'Jira API not configured properly. Missing: ' .. table.concat(missing, ', ') .. '.\n'
-    error_msg = error_msg .. 'Please set your Jira credentials first using :JiraSetup.'
-    
-    utils.show_error(error_msg)
+    utils.show_error('Jira API not configured. Please set your Jira credentials first.')
     return
   end
 
@@ -42,9 +24,7 @@ local function execute_api_call(operation_name, api_call, callback)
   end)
 end
 
---- Lists Jira issues matching a JQL query or filter flags.
--- @param args String of CLI-style arguments or JQL query.
--- @return None. Shows issues in a Neovim window.
+-- List issues matching JQL or filter
 function M.issue_list(args)
   local jql
   local project_filter = false
@@ -142,10 +122,7 @@ function M.issue_list(args)
   end)
 end
 
---- Shows detailed information for a Jira issue.
--- @param issue_key The Jira issue key.
--- @param show_comments (Unused) If true, show comments as well.
--- @return None. Shows issue details in a Neovim window.
+-- View issue details
 function M.issue_view(issue_key, show_comments)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
@@ -171,9 +148,7 @@ function M.issue_view(issue_key, show_comments)
   end)
 end
 
---- Creates a new Jira issue with the given parameters or prompts.
--- @param args String of CLI-style arguments for project, type, summary, and description.
--- @return None. Shows created issue or error.
+-- Create new issue
 function M.issue_create(args)
   -- Parse args for backward compatibility with CLI version
   local project_key = config.get('project_key')
@@ -239,9 +214,7 @@ function M.issue_create(args)
   end)
 end
 
---- Lists Jira sprints for a board, or prompts for board selection.
--- @param args String of CLI-style arguments for board selection.
--- @return None. Shows sprints in a Neovim window.
+-- List sprints
 function M.sprint_list(args)
   -- Parse args for board ID
   local board_id
@@ -304,9 +277,7 @@ function M.sprint_list(args)
   end
 end
 
---- Lists Jira epics for a board, or prompts for board selection.
--- @param args String of CLI-style arguments for board selection.
--- @return None. Shows epics in a Neovim window.
+-- List epics
 function M.epic_list(args)
   -- Parse args for board ID
   local board_id
@@ -369,9 +340,7 @@ function M.epic_list(args)
   end
 end
 
---- Opens a Jira issue or project in the default browser.
--- @param issue_key The Jira issue key or project key. If nil, opens Jira homepage.
--- @return None.
+-- Open issue or project in browser
 function M.open(issue_key)
   if not issue_key or issue_key == '' then
     -- Open the Jira homepage
@@ -414,8 +383,7 @@ function M.open(issue_key)
   end
 end
 
---- Lists all accessible Jira projects.
--- @return None. Shows projects in a Neovim window.
+-- List projects
 function M.project_list()
   execute_api_call('projects', function(callback)
     api.get_projects(callback)
@@ -430,9 +398,7 @@ function M.project_list()
   end)
 end
 
---- Lists Jira boards, optionally filtered by project key.
--- @param project_key (Optional) The Jira project key to filter boards.
--- @return None. Shows boards in a Neovim window.
+-- List boards
 function M.board_list(project_key)
   -- If project key provided, list boards for that project
   if project_key and project_key ~= '' then
@@ -463,8 +429,7 @@ function M.board_list(project_key)
   end
 end
 
---- Lists Jira boards for the default configured project.
--- @return None. Shows boards in a Neovim window.
+-- List boards for the default project
 function M.project_boards()
   local project_key = config.get('project_key') or config.get('default_project')
 
@@ -473,13 +438,20 @@ function M.project_boards()
     return
   end
 
-  M.board_list(project_key)
+  execute_api_call('project boards', function(callback)
+    api.get_project_boards(project_key, callback)
+  end, function(err, data)
+    if err then
+      utils.show_error('Error listing project boards: ' .. err)
+      return
+    end
+
+    local formatted_output = utils.parse_api_response(data, 'boards')
+    ui.show_output('Jira Boards for Project ' .. project_key, formatted_output)
+  end)
 end
 
---- Gets the available transition states for a Jira issue.
--- @param issue_key The Jira issue key.
--- @param callback Function to call with (err, transitions).
--- @return None. Calls callback with a list of transition names or error.
+-- Get available transitions for an issue
 function M.get_available_transitions(issue_key, callback)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
@@ -509,13 +481,7 @@ function M.get_available_transitions(issue_key, callback)
   end)
 end
 
---- Transitions a Jira issue to a new workflow state.
--- @param issue_key The Jira issue key.
--- @param state The target state name.
--- @param comment (Optional) Comment to add during transition.
--- @param assignee (Optional) Assign issue to this user after transition.
--- @param resolution (Optional) Resolution name if required.
--- @return None. Shows result in Neovim and refreshes issue view.
+-- Transition issue to a new state
 function M.issue_transition(issue_key, state, comment, assignee, resolution)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
@@ -526,6 +492,53 @@ function M.issue_transition(issue_key, state, comment, assignee, resolution)
   if not state or state == '' then
     utils.show_warning('State is required for issue transition')
     return
+  end
+  
+  local function handle_assignee()
+    if not assignee or assignee == '' then
+      return
+    end
+    
+    if assignee:lower() == 'me' then
+      -- Get current user first
+      api.get_current_user(function(err, user_data)
+        if err then
+          utils.show_error('Error getting current user: ' .. err)
+          return
+        end
+
+        M.issue_assign(issue_key, user_data.accountId)
+      end)
+    else
+      -- Check if it's an unassign command
+      if assignee:lower() == 'unassign' or assignee:lower() == 'none' then
+        M.issue_assign(issue_key, 'none')
+      else
+        -- Try to assign directly by username/email
+        M.issue_assign(issue_key, assignee)
+      end
+    end
+  end
+
+  local function perform_transition(transition_id, fields)
+    execute_api_call('transition', function(callback)
+      api.transition_issue(issue_key, transition_id, fields, comment, callback)
+    end, function(err, result)
+      if err then
+        utils.show_error('Error transitioning issue: ' .. err)
+        return
+      end
+
+      utils.show_info('Issue ' .. issue_key .. ' transitioned to "' .. state .. '"')
+
+      -- Handle assignee update if provided
+      if assignee and assignee ~= '' then
+        handle_assignee()
+      end
+
+      -- Refresh the issue view
+      M.issue_view(issue_key)
+    end)
   end
 
   -- First, get available transitions to find the correct transition ID
@@ -568,49 +581,11 @@ function M.issue_transition(issue_key, state, comment, assignee, resolution)
     end
 
     -- Perform the transition
-    execute_api_call('transition', function(callback)
-      api.transition_issue(issue_key, transition_id, fields, comment, callback)
-    end, function(err, result)
-      if err then
-        utils.show_error('Error transitioning issue: ' .. err)
-        return
-      end
-
-      utils.show_info('Issue ' .. issue_key .. ' transitioned to "' .. state .. '"')
-
-      -- Handle assignee update if provided
-      if assignee and assignee ~= '' then
-        if assignee:lower() == 'me' then
-          -- Get current user first
-          api.get_current_user(function(err, user_data)
-            if err then
-              utils.show_error('Error getting current user: ' .. err)
-              return
-            end
-
-            M.issue_assign(issue_key, user_data.accountId)
-          end)
-        else
-          -- Check if it's an unassign command
-          if assignee:lower() == 'unassign' or assignee:lower() == 'none' then
-            M.issue_assign(issue_key, 'none')
-          else
-            -- Try to assign directly by username/email
-            M.issue_assign(issue_key, assignee)
-          end
-        end
-      end
-
-      -- Refresh the issue view
-      M.issue_view(issue_key)
-    end)
+    perform_transition(transition_id, fields)
   end)
 end
 
---- Adds a comment to a Jira issue.
--- @param issue_key The Jira issue key.
--- @param comment_body The comment text.
--- @return None. Shows result and refreshes issue view.
+-- Add a comment to an issue
 function M.issue_comment_add(issue_key, comment_body)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
@@ -638,10 +613,7 @@ function M.issue_comment_add(issue_key, comment_body)
   end)
 end
 
---- Adds a comment to a Jira issue using the contents of a Neovim buffer.
--- @param issue_key The Jira issue key.
--- @param buf The buffer handle to read comment from.
--- @return None. Shows result and refreshes issue view.
+-- Add a comment from buffer content
 function M.issue_comment_add_from_buffer(issue_key, buf)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local comment_body = table.concat(lines, '\n')
@@ -654,10 +626,7 @@ function M.issue_comment_add_from_buffer(issue_key, buf)
   M.issue_comment_add(issue_key, comment_body)
 end
 
---- Assigns a Jira issue to a user by name, email, or special keywords.
--- @param issue_key The Jira issue key.
--- @param assignee Username, email, "me", "unassign", or "none".
--- @return None. Shows result and refreshes issue view.
+-- Assign issue to user
 function M.issue_assign(issue_key, assignee)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
@@ -671,6 +640,27 @@ function M.issue_assign(issue_key, assignee)
   end
 
   local account_id = nil
+  
+  local function perform_assign()
+    execute_api_call('assign', function(callback)
+      api.assign_issue(issue_key, account_id, callback)
+    end, function(err, data)
+      if err then
+        utils.show_error('Error assigning issue: ' .. err)
+        return
+      end
+
+      local display_name = assignee
+      if account_id == 'none' then
+        display_name = 'unassigned'
+      end
+
+      utils.show_info('Issue ' .. issue_key .. ' assigned to ' .. display_name)
+
+      -- Refresh the issue view
+      M.issue_view(issue_key)
+    end)
+  end
 
   -- Handle special cases
   if assignee:lower() == 'unassign' or assignee:lower() == 'none' then
@@ -708,33 +698,9 @@ function M.issue_assign(issue_key, assignee)
       perform_assign()
     end)
   end
-
-  function perform_assign()
-    execute_api_call('assign', function(callback)
-      api.assign_issue(issue_key, account_id, callback)
-    end, function(err, data)
-      if err then
-        utils.show_error('Error assigning issue: ' .. err)
-        return
-      end
-
-      local display_name = assignee
-      if account_id == 'none' then
-        display_name = 'unassigned'
-      end
-
-      utils.show_info('Issue ' .. issue_key .. ' assigned to ' .. display_name)
-
-      -- Refresh the issue view
-      M.issue_view(issue_key)
-    end)
-  end
 end
 
---- Adds a watcher to a Jira issue.
--- @param issue_key The Jira issue key.
--- @param watcher Username, email, "me", or "self".
--- @return None. Shows result and refreshes issue view.
+-- Add watcher to issue
 function M.issue_watch(issue_key, watcher)
   local valid, error_msg = utils.validate_issue_key(issue_key)
   if not valid then
@@ -743,6 +709,22 @@ function M.issue_watch(issue_key, watcher)
   end
 
   local account_id = nil
+  
+  local function perform_watch()
+    execute_api_call('watch', function(callback)
+      api.add_watcher(issue_key, account_id, callback)
+    end, function(err, data)
+      if err then
+        utils.show_error('Error adding watcher: ' .. err)
+        return
+      end
+
+      utils.show_info('Added watcher to issue ' .. issue_key)
+
+      -- Refresh the issue view
+      M.issue_view(issue_key)
+    end)
+  end
 
   -- Handle special cases
   if not watcher or watcher == '' or watcher:lower() == 'me' or watcher:lower() == 'self' then
@@ -777,35 +759,16 @@ function M.issue_watch(issue_key, watcher)
       perform_watch()
     end)
   end
-
-  function perform_watch()
-    execute_api_call('watch', function(callback)
-      api.add_watcher(issue_key, account_id, callback)
-    end, function(err, data)
-      if err then
-        utils.show_error('Error adding watcher: ' .. err)
-        return
-      end
-
-      utils.show_info('Added watcher to issue ' .. issue_key)
-
-      -- Refresh the issue view
-      M.issue_view(issue_key)
-    end)
-  end
 end
 
---- Gets the current Jira user information.
--- @param callback Function to call with (err, user_data).
--- @return None. Calls callback with user data or error.
+-- Get current user
 function M.get_current_user(callback)
   execute_api_call('current user', function(cb)
     api.get_current_user(cb)
   end, callback)
 end
 
---- Shows the current active sprint and its issues for the default board.
--- @return None. Shows sprint info and issues in a Neovim window.
+-- Get current active sprint from default board
 function M.current_sprint()
   local board_id = config.get('default_board')
 

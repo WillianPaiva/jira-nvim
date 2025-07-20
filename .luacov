@@ -1,0 +1,31 @@
+--- LuaCov configuration file for jira-nvim
+
+return {
+  -- filename to store stats collected
+  ["statsfile"] = "luacov.stats.out",
+
+  -- filename to store report
+  ["reportfile"] = "luacov.report.out",
+
+  -- Run reporter on completion? (won't work for custom reporters)
+  runreport = true,
+
+  -- Delete stats file after reporting?
+  deletestats = false,
+  
+  -- Patterns for files to include when reporting
+  -- all will be included if nothing is listed
+  -- (exclude overrules include, do not include
+  -- the .lua extension, path separator is always '/')
+  ["include"] = {
+    "jira%-nvim/"
+  },
+
+  -- Patterns for files to exclude when reporting
+  -- all will be included if nothing is listed
+  -- (exclude overrules include, do not include
+  -- the .lua extension, path separator is always '/')
+  ["exclude"] = {
+    "spec/"
+  },
+}
