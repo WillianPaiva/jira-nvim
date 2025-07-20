@@ -33,7 +33,8 @@ local defaults = {
   },
 
   -- API options
-  api_timeout = 10000, -- 10 seconds timeout for API requests
+  api_timeout = 10000, -- 10 seconds timeout for API requests (Cloud)
+  server_timeout = 30000, -- 30 seconds timeout for self-hosted servers
   max_results = 50, -- Maximum number of results to fetch in searches
   max_comments = 10, -- Maximum number of comments to display
 
@@ -122,6 +123,16 @@ end
 function M.setup(opts)
   -- First, merge defaults with provided options
   M.options = vim.tbl_deep_extend('force', defaults, opts or {})
+  
+  -- Apply special handling for server_timeout if provided
+  if opts and opts.server_timeout and type(opts.server_timeout) == 'number' then
+    if opts.server_timeout < 10000 then
+      -- Warn if timeout is too small for self-hosted
+      vim.defer_fn(function()
+        utils.show_warning('server_timeout may be too low for self-hosted instances. Consider at least 30000 (30s).')
+      end, 0)
+    end
+  end
 
   -- Check if this is a forced interactive setup
   local force_setup = opts and opts.force_setup
@@ -247,6 +258,11 @@ end
 
 function M.get(key)
   return M.options[key]
+end
+
+function M.set(key, value)
+  M.options[key] = value
+  return value
 end
 
 -- Check if credentials are configured

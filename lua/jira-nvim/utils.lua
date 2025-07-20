@@ -131,6 +131,11 @@ end
 
 -- Open URL in browser
 function M.open_in_browser(url)
+  -- Ensure URL is properly formatted
+  if not url:match('^https?://') then
+    url = 'https://' .. url:gsub('^/*', '')
+  end
+
   -- Determine OS for correct command
   local open_cmd
   if vim.fn.has('mac') == 1 then
@@ -138,14 +143,20 @@ function M.open_in_browser(url)
   elseif vim.fn.has('unix') == 1 then
     open_cmd = 'xdg-open'
   elseif vim.fn.has('win32') == 1 then
-    open_cmd = 'start ""'
+    open_cmd = 'cmd.exe /c start "" '
   else
     M.show_error('Unsupported OS for opening URL')
     return false
   end
 
-  -- Execute the command
-  local cmd = open_cmd .. ' "' .. url .. '"'
+  -- Execute the command with properly quoted URL
+  local cmd
+  if vim.fn.has('win32') == 1 then
+    cmd = open_cmd .. '"' .. url .. '"'
+  else
+    cmd = open_cmd .. ' "' .. url .. '"'
+  end
+
   local result = vim.fn.system(cmd)
 
   if vim.v.shell_error ~= 0 then
@@ -187,12 +198,39 @@ function M.create_spinner(message)
 end
 
 function M.show_error(message)
+  -- Enhance error messages with self-hosted specific tips
+  local enhanced_message = message
+  
+  -- Check if this is a timeout or connection error for a self-hosted instance
+  local config = require('jira-nvim.config')
+  local server_type = config.get('server_type') or ''
+  
+  if server_type == 'server' or not message:match('atlassian.net') then
+    -- Provide more helpful messages for common self-hosted errors
+    if message:match('timeout') or message:match('unable to complete') or message:match('timed out') then
+      enhanced_message = message .. '\n\nTroubleshooting Tips for Self-Hosted Jira:\n' ..  
+                       '- Increase timeout: setup({server_timeout = 60000})\n' ..  
+                       '- Check network connectivity to your Jira server\n' .. 
+                       '- Confirm the API token has appropriate permissions\n' .. 
+                       '- Ensure your Jira server version supports REST API v2'
+    elseif message:match('401') or message:match('[Aa]uthorization') or message:match('[Aa]uthentication') then
+      enhanced_message = message .. '\n\nTroubleshooting Tips for Self-Hosted Jira:\n' ..  
+                       '- Verify your API token is correct\n' .. 
+                       '- For some self-hosted instances, use personal access token with setup({auth_type = "bearer"})\n' .. 
+                       '- Check that your account has API access permissions'
+    elseif message:match('404') or message:match('not found') then
+      enhanced_message = message .. '\n\nTroubleshooting Tips for Self-Hosted Jira:\n' ..  
+                       '- Confirm your Jira URL is correct (including protocol)\n' .. 
+                       '- Your Jira instance might use a different API endpoint structure'
+    end
+  end
+  
   -- Use LazyVim's notification system if available
   local has_lazyvim, LazyVim = pcall(require, 'lazyvim.util')
   if has_lazyvim and LazyVim.error then
-    LazyVim.error(message, { title = 'Jira' })
+    LazyVim.error(enhanced_message, { title = 'Jira' })
   else
-    vim.notify('Jira Error: ' .. message, vim.log.levels.ERROR)
+    vim.notify('Jira Error: ' .. enhanced_message, vim.log.levels.ERROR)
   end
 end
 

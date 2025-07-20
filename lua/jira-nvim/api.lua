@@ -31,6 +31,15 @@ function M.setup()
     utils.show_error('Jira URL missing. Please set jira_url in your config.')
     return false
   end
+  
+  -- Normalize URL format (ensure it starts with https:// and doesn't end with /)
+  if not base_url:match('^https?://') then
+    base_url = 'https://' .. base_url
+  end
+  base_url = base_url:gsub('/$', '')
+  
+  -- Update the config with normalized URL
+  config.set('jira_url', base_url)
 
   if auth_type == 'basic' and (not email or not api_token) then
     utils.show_error('Basic authentication requires both email and API token.')
@@ -58,15 +67,21 @@ function M.setup()
   end
 
   -- Detect Jira server type (cloud vs. server)
-  if base_url:match('atlassian.net') then
+  if base_url:match('atlassian.net') or base_url:match('jira%.com') then
     auth.server_type = 'cloud'
   else
     auth.server_type = 'server'
+    -- Self-hosted instances typically need longer timeout
+    opts.timeout = config.get('server_timeout') or 30000
   end
 
   -- Adjust API paths based on server type
   if auth.server_type == 'server' then
     api_paths.v3 = api_paths.v2 -- Fallback to v2 for server instances
+    -- Log server type detection for debugging
+    vim.defer_fn(function() 
+      utils.show_info('Detected Jira self-hosted instance. Using API v2.')
+    end, 0)
   end
 
   return true
@@ -101,9 +116,29 @@ function M.request(method, endpoint, api_version, data, callback)
     base_path = api_paths.agile
   end
 
-  -- For server instances, make sure URL doesn't end with a slash
+  -- Normalize URL format to ensure compatibility with different Jira instances
   local base_url = auth.base_url:gsub('/$', '')
-  local url = base_url .. base_path .. endpoint
+  
+  -- Some self-hosted instances have specific context paths
+  local context_path = ''
+  
+  -- Check if URL contains a context path (e.g., https://example.com/jira)
+  local host_part, path_part = base_url:match('(https?://[^/]+)(/.*)')
+  if host_part and path_part and auth.server_type == 'server' then
+    -- Store original URL for logging
+    local original_url = base_url
+    
+    -- Extract the host and context path
+    base_url = host_part
+    context_path = path_part
+    
+    -- Log the URL transformation for debugging
+    vim.defer_fn(function()
+      utils.show_info('Detected Jira context path: ' .. context_path, { searching = true })
+    end, 0)
+  end
+  
+  local url = base_url .. context_path .. base_path .. endpoint
 
   local headers = {
     ['Authorization'] = auth.auth_header,
@@ -111,9 +146,16 @@ function M.request(method, endpoint, api_version, data, callback)
     ['Accept'] = 'application/json',
   }
 
+  local timeout = 10000 -- Default timeout
+  
+  -- For server instances, use longer timeout
+  if auth.server_type == 'server' then
+    timeout = config.get('server_timeout') or 30000 -- 30 seconds for server instances
+  end
+  
   local opts = {
     headers = headers,
-    timeout = 10000,
+    timeout = timeout,
   }
 
   if data then
@@ -147,10 +189,25 @@ function M.request(method, endpoint, api_version, data, callback)
     end
 
     -- Special handling for specific error codes
-    if response.status == 404 and method == 'GET' and api_version == 'v3' then
-      -- Try falling back to v2 API for older Jira instances
-      M.request(method, endpoint, 'v2', data, callback)
-      return
+    if (response.status == 404 or response.status == 400) and method == 'GET' then
+      if api_version == 'v3' then
+        -- Try falling back to v2 API for older/self-hosted Jira instances
+        utils.show_info('API v3 failed, trying v2 as fallback', { searching = true })
+        M.request(method, endpoint, 'v2', data, callback)
+        return
+      elseif api_version == 'v2' and endpoint:match('^/myself') then
+        -- Some self-hosted instances use different endpoint for current user
+        utils.show_info('Trying alternative endpoint for self-hosted instance', { searching = true })
+        M.request(method, '/user/current', 'v2', data, callback)
+        return
+      end
+    end
+    
+    -- For timeout/connection errors, provide more helpful messages
+    if err_msg:match('timed out') or err_msg:match('unable to complete') then
+      if auth.server_type == 'server' then
+        err_msg = err_msg .. '\n\nTIP: For self-hosted Jira instances, try increasing the timeout with: require(\'jira-nvim\').setup({server_timeout = 60000})'
+      end
     end
 
     callback(err_msg, nil)
@@ -173,12 +230,35 @@ end
 
 -- Get current user ("myself")
 function M.get_current_user(callback)
-  M.request('GET', '/myself', 'v3', nil, callback)
+  local endpoint = '/myself'
+  local version = 'v3'
+  
+  -- For server instances, try v2 with the appropriate endpoint
+  if auth.server_type == 'server' then
+    version = 'v2'
+    
+    -- Some self-hosted Jira instances use different endpoints for current user
+    -- If the first attempt fails, the error handler will try alternates
+  end
+  
+  M.request('GET', endpoint, version, nil, function(err, data)
+    -- If we get specific error that indicates the endpoint might be different
+    if err and auth.server_type == 'server' and not data and 
+       (err:match('404') or err:match('400')) then
+      -- Try alternative endpoint as some self-hosted instances use /user/current
+      utils.show_info('First user endpoint failed, trying alternative...', { searching = true })
+      M.request('GET', '/user/current', 'v2', nil, callback)
+    else
+      callback(err, data)
+    end
+  end)
 end
 
 -- Get issue with rendered fields and transition options
 function M.get_issue(issue_key, callback)
-  M.request('GET', '/issue/' .. issue_key .. '?expand=renderedFields,transitions', 'v3', nil, callback)
+  -- Default to v3 but use v2 for self-hosted
+  local version = auth.server_type == 'server' and 'v2' or 'v3'
+  M.request('GET', '/issue/' .. issue_key .. '?expand=renderedFields,transitions', version, nil, callback)
 end
 
 -- URL encode a string (simpler version focused on Jira JQL needs)
@@ -251,7 +331,18 @@ function M.search_issues(jql, max_results, callback)
   local params = '?jql=' .. encoded_jql
   params = params .. '&expand=renderedFields'
   params = params .. '&maxResults=' .. max_results
-  M.request('GET', '/search' .. params, 'v2', nil, callback)
+  
+  -- Search API is more reliably v2 across all Jira instances
+  M.request('GET', '/search' .. params, 'v2', nil, function(err, data)
+    if err and auth.server_type == 'server' and err:match('400') then
+      -- Some self-hosted instances don't support the renderedFields expand
+      params = '?jql=' .. encoded_jql .. '&maxResults=' .. max_results
+      utils.show_info('Trying search without renderedFields for self-hosted instance', { searching = true })
+      M.request('GET', '/search' .. params, 'v2', nil, callback)
+    else
+      callback(err, data)
+    end
+  end)
 end
 
 -- Create issue
@@ -390,25 +481,54 @@ end
 -- Get all projects
 function M.get_projects(callback)
   -- First try with v3 API, fall back to v2 if needed
-  M.request('GET', '/project', 'v2', nil, function(err, data)
+  local version = auth.server_type == 'server' and 'v2' or 'v3'
+  
+  M.request('GET', '/project', version, nil, function(err, data)
     if err then
-      callback(err, nil)
-    else
-      -- Filter out archived projects by default if that field exists
-      local active_projects = {}
-      for _, project in ipairs(data) do
-        if project.archived == nil or not project.archived then
-          table.insert(active_projects, project)
-        end
+      -- If v3/v2 fails, try the other version as fallback
+      if version == 'v3' then
+        utils.show_info('API v3 project endpoint failed, trying v2 as fallback', { searching = true })
+        M.request('GET', '/project', 'v2', nil, function(err2, data2)
+          if err2 then
+            callback(err2, nil)
+          else
+            processProjects(data2)
+          end
+        end)
+      else
+        callback(err, nil)
       end
-      callback(nil, active_projects)
+    else
+      processProjects(data)
     end
   end)
+  
+  function processProjects(data)
+    -- Filter out archived projects by default if that field exists
+    local active_projects = {}
+    for _, project in ipairs(data) do
+      if project.archived == nil or not project.archived then
+        table.insert(active_projects, project)
+      end
+    end
+    callback(nil, active_projects)
+  end
 end
 
 -- Get project by key
 function M.get_project(project_key, callback)
-  M.request('GET', '/project/' .. project_key, 'v3', nil, callback)
+  -- Use v2 for self-hosted instances by default
+  local version = auth.server_type == 'server' and 'v2' or 'v3'
+  
+  M.request('GET', '/project/' .. project_key, version, nil, function(err, data)
+    if err and version == 'v3' then
+      -- If v3 fails, try v2 as fallback
+      utils.show_info('API v3 project endpoint failed, trying v2 as fallback', { searching = true })
+      M.request('GET', '/project/' .. project_key, 'v2', nil, callback)
+    else
+      callback(err, data)
+    end
+  end)
 end
 
 -- Get all boards
